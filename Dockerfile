@@ -61,6 +61,7 @@ COPY --from=builder /app/node_modules ./node_modules
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/entrypoint.sh ./entrypoint.sh
 
 # Create storage directory with proper permissions
 RUN mkdir -p /app/storage && chown -R nextjs:nodejs /app/storage
@@ -74,4 +75,7 @@ ENV PORT=3000
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
-CMD ["sh", "-c", "node .next/standalone/server.js"]
+
+RUN chmod +x entrypoint.sh
+
+CMD ["sh", "entrypoint.sh"]

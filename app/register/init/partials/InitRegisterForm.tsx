@@ -4,6 +4,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import Image from 'next/image';
 import { useActionState, useState } from 'react';
 import { signupInit } from '../lib/actions';
+import Link from 'next/link';
 
 export default function InitRegisterForm() {
   const [state, action, pending] = useActionState(signupInit, undefined);
@@ -28,6 +29,20 @@ export default function InitRegisterForm() {
           <div className="alert alert-danger alert-dismissible" role="alert">
             <h3 className="mb-1">Account not created</h3>
             <p>{state.message}</p>
+            <a
+              className="btn-close"
+              data-bs-dismiss="alert"
+              aria-label="close"
+            ></a>
+          </div>
+        )}
+        {state?.success && (
+          <div className="alert alert-success alert-dismissible" role="alert">
+            <h3 className="mb-1">Account created</h3>
+            <p>Admin account created successfully.</p>
+            <Link href="/login">
+              <a className="btn btn-primary">Go to login</a>
+            </Link>
             <a
               className="btn-close"
               data-bs-dismiss="alert"

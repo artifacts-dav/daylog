@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "coverage": "vitest run --coverage",
-    "start:docker": "npx prisma migrate deploy && npm run start"
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.726.1",

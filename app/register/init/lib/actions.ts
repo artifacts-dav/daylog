@@ -37,14 +37,13 @@ export async function signupInit(state: InitFormState, formData: FormData) {
     });
     if (user) {
       return {
-        message: 'User already exists.',
+        message: 'Admin user already exists.',
         success: false,
       };
     }
 
     const hashedPassword = hashPassword(result.data.password);
-    result.data.password = hashedPassword;
-
+    
     await prisma.user.create({
       data: {
         name: result.data.name,
@@ -55,7 +54,7 @@ export async function signupInit(state: InitFormState, formData: FormData) {
       },
     });
 
-    revalidatePath('/', 'layout');
+    revalidatePath('/login', 'layout');
 
     return {
       success: true,
