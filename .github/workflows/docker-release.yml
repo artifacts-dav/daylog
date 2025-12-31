@@ -23,12 +23,12 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d8c007052462b96d19282751
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/daylog
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
         with:
           context: .
           push: true
@@ -48,7 +48,7 @@ jobs:
           echo "✅ .env.example updated: TAG_NAME=$RELEASE_TAG"
 
       - name: Upload Release Assets
-        uses: softprops/action-gh-release@c95fe1489396fe8a2169f11b973b987624c26a67
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           files: |
             docker-compose.yml
