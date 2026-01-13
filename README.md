@@ -52,7 +52,7 @@ docker run -d \
 postgres:16
 ```
 
-3. **Run daylog conatiner:**
+3. **Run daylog container:**
 
 ```bash
 docker run -d \
