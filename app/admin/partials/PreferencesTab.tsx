@@ -36,7 +36,7 @@ export default function PreferencesTab({initialSettings: initialSettings}: {init
             id="flexSwitchCheckDefault"
           />
           <span className="form-check-label">
-            Force users to configure 2FA Authentication
+            Enable 2FA Authentication
           </span>
         </label>
       </div>

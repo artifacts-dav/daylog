@@ -61,6 +61,11 @@ export default async function Profile({
           description="Manage your profile and backup your data"
           breadcrumbs={breadcrumbs} />
         <PageBody>
+          {settings?.mfa && !profile.mfa && (
+            <div className="alert alert-important alert-danger" role="alert">
+              2FA Authentication is not enabled for this profile. Is recommended to enable it for security reasons.
+            </div>
+          )}
           {user.role === 'admin' && user.id !== profile.id && (
             <div className="alert alert-important alert-primary" role="alert">
               You are impersonating this profile as an admin.

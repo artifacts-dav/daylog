@@ -2,6 +2,7 @@ import { prismaMock } from '@/prisma/singleton';
 import { cleanup } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reset } from './actions';
+import { User } from '@/prisma/generated/client';
 
 const mocks = vi.hoisted(() => ({
   hashPassword: vi.fn().mockReturnValue('mocked-hash'),
@@ -61,7 +62,7 @@ describe('reset', () => {
       secret: '',
       sortBoardsBy: 'created_desc',
       sortNotesBy: 'created_desc',
-    };
+    } as User;
     prismaMock.user.findFirst.mockResolvedValue(user);
     mocks.sendMail.mockResolvedValue({ messageId: '123' });
 
@@ -90,7 +91,7 @@ describe('reset', () => {
       secret: '',
       sortBoardsBy: 'created_desc',
       sortNotesBy: 'created_desc',
-    };
+    } as User;
     mocks.createAndVerifyTransporter.mockImplementation(() => {
       throw new Error('Transporter creation failed');
     });
@@ -111,7 +112,7 @@ describe('reset', () => {
     const formData = new FormData();
     formData.append('email', 'test@example.com');
 
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => { });
     prismaMock.user.findFirst.mockRejectedValue(new Error('Database error'));
 
     const result = await reset({}, formData);

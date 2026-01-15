@@ -57,7 +57,7 @@ describe('PreferencesTab', () => {
     render(<PreferencesTab initialSettings={initialSettings} />);
 
     const mfaCheckbox = screen.getByRole('switch', {
-      name: /Force users to configure 2FA Authentication/i,
+      name: /Enable 2FA Authentication/i,
     });
 
     fireEvent.click(mfaCheckbox);
@@ -88,7 +88,7 @@ describe('PreferencesTab', () => {
 
     expect(unsplashCheckbox).toBeChecked();
   });
-  
+
   it('toggles S3 checkbox', () => {
     render(<PreferencesTab initialSettings={initialSettings} />);
 

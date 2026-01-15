@@ -29,6 +29,8 @@ model User {
   sortBoardsBy   String?   @default("created_desc")
   failedAttempts Int?      @default(0)
   lockUntil      DateTime?
+  mfaCode        String?
+  mfaCodeSentAt  DateTime?
 }
 
 model Session {

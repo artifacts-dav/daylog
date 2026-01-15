@@ -7,7 +7,7 @@ import {
 import { deleteSessionTokenCookie } from '@/app/login/lib/cookies';
 import { prisma } from '@/prisma/client';
 import { hashPassword } from '@/utils/crypto';
-import { validateTOTP } from '@/utils/totp';
+import { generateTOTP, validateTOTP } from '@/utils/totp';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { permanentRedirect, redirect } from 'next/navigation';
@@ -26,6 +26,8 @@ import {
   UpdateMFAFormSchema,
   MFAFormState as UpdateMFAFormState,
 } from './definitions';
+import { createAndVerifyTransporter } from '@/utils/email';
+import { User } from '@/prisma/generated/client';
 
 export async function updateProfile(
   state: ProfileFormState,
@@ -452,7 +454,10 @@ export async function deleteMFA(state: DeleteMFAFormState, formData: FormData) {
       throw new Error('Secret not found');
     }
 
-    if (!validateTOTP(secret, result.data.password)) {
+    if (
+      !validateMFACode(result.data.password, record) &&
+      !validateTOTP(secret, result.data.password)
+    ) {
       return {
         data: result.data,
         message: 'OTP is not valid.',
@@ -464,6 +469,8 @@ export async function deleteMFA(state: DeleteMFAFormState, formData: FormData) {
       data: {
         mfa: false,
         secret: null,
+        mfaCode: null,
+        mfaCodeSentAt: null,
       },
     });
 
@@ -478,4 +485,59 @@ export async function deleteMFA(state: DeleteMFAFormState, formData: FormData) {
       message: 'An error occurred while deleting your MFA.',
     };
   }
+}
+
+export async function sendOTP() {
+  const { user } = await getCurrentSession();
+
+  if (!user) {
+    throw new Error('Not authenticated');
+  }
+
+  try {
+    const currentUser = await prisma.user.findFirst({
+      where: { id: user.id },
+    });
+
+    if (!currentUser || !currentUser.secret) {
+      throw new Error('User or secret not found');
+    }
+
+    const transporter = await createAndVerifyTransporter();
+
+    const code = generateTOTP(currentUser.secret, 30);
+
+    const result = await prisma.user.update({
+      where: { id: currentUser.id },
+      data: {
+        mfaCode: code,
+        mfaCodeSentAt: new Date(),
+      },
+    });
+
+    const info = await transporter.sendMail({
+      from: `"${'daylog'} accounts" <${process.env.SMTP_SERVER_USER}>`,
+      to: currentUser.email,
+      subject: 'Account MFA code',
+      text: `Your OTP is: ${result.mfaCode}.\n This code will expire in 5 minutes.`,
+    });
+    return {
+      success: info.messageId ? true : false,
+    };
+  } catch (e) {
+    console.error(e);
+    return {
+      success: false,
+    };
+  }
+}
+
+function validateMFACode(password: string, user: User) {
+  if (!user.mfaCode || !user.mfaCodeSentAt) {
+    return false;
+  }
+  const now = new Date();
+  const diff = now.getTime() - user.mfaCodeSentAt!.getTime();
+  const diffMinutes = Math.floor(diff / 1000 / 60);
+  return user.mfaCode === password && diffMinutes < 1;
 }

@@ -1,12 +1,13 @@
 import { prismaMock } from '@/prisma/singleton';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   backupData,
   deleteAccount,
   deleteMFA,
   getProfile,
+  sendOTP,
   updateMFA,
   updatePassword,
   updateProfile,
@@ -22,6 +23,11 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
   hashPassword: vi.fn(),
   validateTOTP: vi.fn(),
+  sendMail: vi.fn(),
+  generateTOTP: vi.fn(),
+  createAndVerifyTransporter: vi.fn().mockImplementation(() => ({
+    sendMail: mocks.sendMail,
+  })),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -44,6 +50,7 @@ vi.mock('@/utils/crypto', () => ({
 
 vi.mock('@/utils/totp', () => ({
   validateTOTP: mocks.validateTOTP,
+  generateTOTP: mocks.generateTOTP,
 }));
 
 vi.mock('next/cache');
@@ -51,6 +58,10 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn().mockReturnValue({
     get: vi.fn().mockReturnValue({ value: 'mockToken' }),
   }),
+}));
+
+vi.mock('@/utils/email', () => ({
+  createAndVerifyTransporter: mocks.createAndVerifyTransporter,
 }));
 
 describe('Profile Actions', () => {
@@ -438,6 +449,12 @@ describe('Profile Actions', () => {
   });
 
   describe('deleteMFA', () => {
+    beforeEach(() => {
+      mocks.getCurrentSession.mockResolvedValue({
+        user: { id: 1, role: 'user' },
+      });
+    });
+
     it('should delete MFA successfully', async () => {
       const formData = new FormData();
       formData.append('id', '1');
@@ -503,5 +520,70 @@ describe('Profile Actions', () => {
         message: 'OTP is not valid.',
       });
     });
+
+    it('should delete MFA using email code', async () => {
+      const formData = new FormData();
+      formData.append('id', '1');
+      formData.append('password', '123456');
+
+      prismaMock.user.findUnique.mockResolvedValue({
+        id: 1,
+        secret: 'secret',
+        name: null,
+        email: '',
+        password: '',
+        mfa: false,
+        role: '',
+        terms: '',
+        sortBoardsBy: 'created_desc',
+        sortNotesBy: 'created_desc',
+        mfaCode: '123456',
+        mfaCodeSentAt: new Date(),
+      } as User);
+      prismaMock.user.update.mockResolvedValue({
+        id: 1,
+        name: null,
+        email: '',
+        password: '',
+        secret: null,
+        mfa: false,
+        role: '',
+        terms: '',
+        sortBoardsBy: 'created_desc',
+        sortNotesBy: 'created_desc',
+        mfaCode: null,
+        mfaCodeSentAt: null,
+      } as User);
+      mocks.validateTOTP.mockReturnValue(false);
+
+      const result = await deleteMFA({}, formData);
+
+      expect(result).toEqual({
+        success: true,
+        message: 'Your device has been deleted you can refresh this page.',
+      });
+    })
+
+    it('should send email with code for deletion', async () => {
+      mocks.sendMail.mockResolvedValue({ messageId: '123' });
+      mocks.generateTOTP.mockReturnValue('123456');
+      prismaMock.user.findFirst.mockResolvedValue({
+        id: 1,
+        email: 'test@example.com',
+        secret: 'secret'
+      } as User)
+
+      await sendOTP();
+
+      expect(prismaMock.user.update).toBeCalledWith({
+        where: { id: 1 },
+        data: {
+          mfaCode: '123456',
+          mfaCodeSentAt: expect.any(Date),
+        },
+      })
+      expect(mocks.createAndVerifyTransporter).toBeCalled();
+
+    })
   });
 });

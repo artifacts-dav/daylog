@@ -9,7 +9,7 @@ import {
 } from '@tabler/icons-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useActionState, useEffect, useState } from 'react';
-import { deleteMFA, updateMFA } from '../lib/actions';
+import { deleteMFA, sendOTP, updateMFA } from '../lib/actions';
 
 type ProfileInfoType = {
   profile: User;
@@ -34,7 +34,9 @@ export default function MultiFAAuth({ profile }: ProfileInfoType) {
 }
 
 const ModalDelete = ({ profile }: ProfileInfoType) => {
+  const [otpSent, setOtpSent] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [sending, setSending] = useState<boolean>(false);
   const [state, action, pending] = useActionState(deleteMFA, undefined);
   return (
     <>
@@ -81,44 +83,48 @@ const ModalDelete = ({ profile }: ProfileInfoType) => {
                           {state?.errors?.password}
                         </div>
                       )}
-                      <button className="btn-link mb-2">
-                        Send a code to my e-mail.
+                      {otpSent === 'sent' && (
+                        <div className="text-success">
+                          Code sent to your e-mail.
+                        </div>
+                      )}
+                      {otpSent === 'failed' && (
+                        <div className="text-danger">
+                          Failed to send code to your e-mail.
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className={`btn btn-link mb-2 ${sending ? 'btn-loading disabled' : null}`}
+                        onClick={async () => {
+                          setSending(true);
+                          const result = await sendOTP();
+                          setSending(false);
+                          setOtpSent(result.success ? 'sent' : 'failed');
+                        }}
+                      >
+                        Send {otpSent === 'sent' ? 'another' : 'a'} code to my e-mail.
                       </button>
                       <div className="text-danger">
                         If you change the TOTP device, you will lose access to
                         the other configured devices.
                       </div>
-                      {state?.errors?.password && (
-                        <div className="invalid-feedback d-block" role="alert">
-                          {state?.errors?.password}
-                        </div>
-                      )}
                       {!state?.success && state?.message && (
                         <div
-                          className="alert alert-important alert-danger alert-dismissible mt-3"
+                          className="alert alert-important alert-danger mt-3"
                           role="alert"
                         >
                           <div>{state.message}</div>
-                          <a
-                            className="btn-close btn-close-white"
-                            data-bs-dismiss="alert"
-                            aria-label="close"
-                          ></a>
                         </div>
                       )}
                     </>
                   )}
                   {state?.success && state?.message && (
                     <div
-                      className="alert alert-important alert-success alert-dismissible mt-3"
+                      className="alert alert-important alert-success mt-3"
                       role="alert"
                     >
                       <div>{state.message}</div>
-                      <a
-                        className="btn-close btn-close-white"
-                        data-bs-dismiss="alert"
-                        aria-label="close"
-                      ></a>
                     </div>
                   )}
                 </div>
@@ -139,9 +145,8 @@ const ModalDelete = ({ profile }: ProfileInfoType) => {
                           <button
                             type="submit"
                             disabled={pending}
-                            className={`btn btn-danger w-100 ${
-                              pending ? 'btn-loading disabled' : null
-                            }`}
+                            className={`btn btn-danger w-100 ${pending ? 'btn-loading disabled' : null
+                              }`}
                           >
                             Delete
                           </button>
@@ -228,16 +233,14 @@ const ModalUpdate = ({ profile }: ProfileInfoType) => {
                           type={isShowPassword ? 'text' : 'password'}
                           name="secret-password"
                           defaultValue={secret}
-                          className={`form-control ${
-                            state?.errors?.password && 'border-danger'
-                          }`}
+                          className={`form-control ${state?.errors?.password && 'border-danger'
+                            }`}
                           placeholder="Secret"
                           autoComplete="off"
                         />
                         <span
-                          className={`input-group-text  ${
-                            state?.errors?.password && 'border-danger'
-                          }`}
+                          className={`input-group-text  ${state?.errors?.password && 'border-danger'
+                            }`}
                         >
                           <input
                             id={'showPassword'}
@@ -284,30 +287,20 @@ const ModalUpdate = ({ profile }: ProfileInfoType) => {
                     )}
                     {!state?.success && state?.message && (
                       <div
-                        className="alert alert-important alert-danger alert-dismissible mt-3"
+                        className="alert alert-important alert-danger mt-3"
                         role="alert"
                       >
                         <div>{state.message}</div>
-                        <a
-                          className="btn-close btn-close-white"
-                          data-bs-dismiss="alert"
-                          aria-label="close"
-                        ></a>
                       </div>
                     )}
                   </>
                 )}
                 {state?.success && state?.message && (
                   <div
-                    className="alert alert-important alert-success alert-dismissible mt-3"
+                    className="alert alert-important alert-success mt-3"
                     role="alert"
                   >
                     <div>{state.message}</div>
-                    <a
-                      className="btn-close btn-close-white"
-                      data-bs-dismiss="alert"
-                      aria-label="close"
-                    ></a>
                   </div>
                 )}
               </div>
@@ -324,9 +317,8 @@ const ModalUpdate = ({ profile }: ProfileInfoType) => {
                         <button
                           type="submit"
                           disabled={pending}
-                          className={`btn btn-primary w-100 ${
-                            pending ? 'btn-loading disabled' : null
-                          }`}
+                          className={`btn btn-primary w-100 ${pending ? 'btn-loading disabled' : null
+                            }`}
                         >
                           Save device
                         </button>
