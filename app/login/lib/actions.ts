@@ -22,6 +22,74 @@ import { NextRequest } from 'next/server';
 import { authRateLimiter, getClientIP } from '@/utils/rateLimit';
 import { SECURITY_CONFIG } from '@/config/security';
 
+interface AttemptLimitResult {
+  isLocked: boolean;
+  lockUntil?: Date;
+  remainingAttempts?: number;
+  message?: string;
+}
+
+async function checkAttemptLimit(user: {
+  id: number;
+  failedAttempts?: number | null;
+  lockUntil?: Date | null;
+}): Promise<AttemptLimitResult> {
+  const MAX_FAILED_ATTEMPTS = SECURITY_CONFIG.LOCKOUT.MAX_FAILED_ATTEMPTS;
+  const LOCK_DURATION = SECURITY_CONFIG.LOCKOUT.LOCK_DURATION_MS;
+  
+  if (user.lockUntil && Date.now() < user.lockUntil.getTime()) {
+    return {
+      isLocked: true,
+      lockUntil: user.lockUntil,
+      message: 'Account temporarily locked. Please try again later.',
+    };
+  }
+  
+  const remainingAttempts = MAX_FAILED_ATTEMPTS - (user.failedAttempts || 0);
+  
+  return {
+    isLocked: false,
+    remainingAttempts,
+  };
+}
+
+async function registerFailedAttempt(userId: number): Promise<AttemptLimitResult> {
+  const MAX_FAILED_ATTEMPTS = SECURITY_CONFIG.LOCKOUT.MAX_FAILED_ATTEMPTS;
+  const LOCK_DURATION = SECURITY_CONFIG.LOCKOUT.LOCK_DURATION_MS;
+  
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { failedAttempts: true }
+  });
+  
+  if (!user) {
+    throw new Error('User not found');
+  }
+  
+  const newFailedAttempts = (user.failedAttempts || 0) + 1;
+  const shouldLock = newFailedAttempts >= MAX_FAILED_ATTEMPTS;
+  
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      failedAttempts: newFailedAttempts,
+      lockUntil: shouldLock ? new Date(Date.now() + LOCK_DURATION) : null,
+    },
+  });
+  
+  return await checkAttemptLimit(updatedUser);
+}
+
+async function resetFailedAttempts(userId: number): Promise<void> {
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      failedAttempts: 0,
+      lockUntil: null,
+    },
+  });
+}
+
 export async function validateAdminUserNotExists(): Promise<boolean> {
   const admin = await prisma.user.findFirst({ where: { role: 'admin' } });
   return !admin;
@@ -34,15 +102,14 @@ async function generateSessionToken(): Promise<string> {
   return token;
 }
 
-async function createSession(
-  token: string,
-  userId: number
-): Promise<Session> {
+async function createSession(token: string, userId: number): Promise<Session> {
   const sessionId = encodeHex(token);
-const session: Session = {
+  const session: Session = {
     id: sessionId,
     userId,
-    expiresAt: new Date(Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+    expiresAt: new Date(
+      Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    ),
   };
   await prisma.session.create({
     data: session,
@@ -51,7 +118,7 @@ const session: Session = {
 }
 
 export async function validateSessionToken(
-  token: string
+  token: string,
 ): Promise<SessionValidationResult> {
   const sessionId = encodeHex(token);
   const result = await prisma.session.findUnique({
@@ -70,8 +137,14 @@ export async function validateSessionToken(
     await prisma.session.delete({ where: { id: sessionId } });
     return { session: null, user: null };
   }
-if (Date.now() >= session.expiresAt.getTime() - SECURITY_CONFIG.SESSION.RENEWAL_THRESHOLD_DAYS * 24 * 60 * 60 * 1000) {
-    session.expiresAt = new Date(Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+  if (
+    Date.now() >=
+    session.expiresAt.getTime() -
+      SECURITY_CONFIG.SESSION.RENEWAL_THRESHOLD_DAYS * 24 * 60 * 60 * 1000
+  ) {
+    session.expiresAt = new Date(
+      Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
     await prisma.session.update({
       where: {
         id: session.id,
@@ -88,7 +161,11 @@ export type SessionValidationResult =
   | { session: Session; user: User }
   | { session: null; user: null };
 
-export async function signin(state: FormState, formData: FormData, request?: NextRequest) {
+export async function signin(
+  state: FormState,
+  formData: FormData,
+  request?: NextRequest,
+) {
   const result = SigninFormSchema.safeParse({
     email: formData.get('email'),
     password: formData.get('password'),
@@ -98,7 +175,7 @@ export async function signin(state: FormState, formData: FormData, request?: Nex
   if (request) {
     const ip = getClientIP(request);
     const rateLimitResult = authRateLimiter.isAllowed(`signin:${ip}`);
-    
+
     if (!rateLimitResult.allowed) {
       return {
         data: result.data,
@@ -107,10 +184,8 @@ export async function signin(state: FormState, formData: FormData, request?: Nex
     }
   }
 
-let goMFA = false;
+  let goMFA = false;
   let userId: number | null = null;
-  const MAX_FAILED_ATTEMPTS = SECURITY_CONFIG.LOCKOUT.MAX_FAILED_ATTEMPTS;
-  const LOCK_DURATION = SECURITY_CONFIG.LOCKOUT.LOCK_DURATION_MS;
 
   try {
     if (!result.success) {
@@ -125,56 +200,43 @@ let goMFA = false;
       where: { email: result.data.email },
     });
 
-if (!record) {
+    if (!record) {
+      console.warn(`Failed login attempt for email: ${result.data.email}`);
+      return {
+        data: result.data,
+        message: 'Invalid email or password.',
+      };
+    }
+
+    const attemptLimit = await checkAttemptLimit(record);
+    if (attemptLimit.isLocked) {
       console.warn(
-        `Failed login attempt for email: ${result.data.email}`
+        `Account locked: User with email ${result.data.email} is temporarily locked until ${attemptLimit.lockUntil}`,
       );
       return {
         data: result.data,
-        message: 'Invalid email or password.',
+        message: attemptLimit.message,
       };
     }
 
-    if (record.lockUntil && Date.now() < record.lockUntil.getTime()) {
-console.warn(
-        `Account locked: User with email ${result.data.email} is temporarily locked until ${record.lockUntil}`
-      );
-      return {
-        data: result.data,
-        message: 'Account temporarily locked. Please try again later.',
-      };
-    }
-
-const isPasswordValid = await verifyPassword(result.data.password, record.password);
+    const isPasswordValid = await verifyPassword(
+      result.data.password,
+      record.password,
+    );
     if (!isPasswordValid) {
-      await prisma.user.update({
-        where: { id: record.id },
-        data: {
-          failedAttempts: (record.failedAttempts || 0) + 1,
-          lockUntil:
-            (record.failedAttempts || 0) + 1 >= MAX_FAILED_ATTEMPTS
-              ? new Date(Date.now() + LOCK_DURATION)
-              : null,
-        },
-      });
-
-console.warn(
-        `Failed login attempt for email: ${result.data.email}`
-      );
+      const failedAttemptResult = await registerFailedAttempt(record.id);
+      
+      console.warn(`Failed login attempt for email: ${result.data.email}`);
       return {
         data: result.data,
-        message: 'Invalid email or password.',
+        message: failedAttemptResult.isLocked 
+          ? failedAttemptResult.message 
+          : 'Invalid email or password.',
       };
     }
 
     // Reset failed attempts on successful login
-    await prisma.user.update({
-      where: { id: record.id },
-      data: {
-        failedAttempts: 0,
-        lockUntil: null,
-      },
-    });
+    await resetFailedAttempts(record.id);
 
     const settings = await getSettings();
     if (record.mfa && settings?.mfa) {
@@ -201,7 +263,10 @@ console.warn(
 }
 
 export const getCurrentSession = cache(
-  async (req?: NextRequest | null, token?: string | null): Promise<SessionValidationResult> => {
+  async (
+    req?: NextRequest | null,
+    token?: string | null,
+  ): Promise<SessionValidationResult> => {
     if (token == null && req) {
       token = req.cookies.get('session')?.value ?? null;
     } else if (token == null) {
@@ -213,12 +278,12 @@ export const getCurrentSession = cache(
     }
     const result = await validateSessionToken(token);
     return result;
-  }
+  },
 );
 
 export async function validateMFA(
   state: ValidateMFAFormState,
-  formData: FormData
+  formData: FormData,
 ) {
   const data = {
     id: Number(formData.get('id')),
@@ -244,24 +309,50 @@ export async function validateMFA(
       throw new Error('User not found.');
     }
 
+    const attemptLimit = await checkAttemptLimit(record);
+    if (attemptLimit.isLocked) {
+      console.warn(
+        `Account locked for OTP validation: User ${data.id} is temporarily locked until ${attemptLimit.lockUntil}`,
+      );
+      return {
+        data: result.data,
+        message: attemptLimit.message,
+        success: false,
+      };
+    }
+
     const secret = record.secret;
     if (!secret) {
       throw new Error('Secret not found');
     }
 
     if (!validateTOTP(secret, result.data.password)) {
+      const failedAttemptResult = await registerFailedAttempt(record.id);
+      
+      let message = failedAttemptResult.isLocked 
+        ? failedAttemptResult.message 
+        : 'OTP is not valid or is expired.';
+      
+      if (!failedAttemptResult.isLocked && failedAttemptResult.remainingAttempts !== undefined) {
+        message += ` ${failedAttemptResult.remainingAttempts} attempts remaining.`;
+      }
+      
       return {
         data: result.data,
-        message: 'OTP is not valid or is expired.',
+        message,
+        success: false,
       };
     }
 
+    // Reset failed attempts on successful OTP validation
+    await resetFailedAttempts(record.id);
     await generateUserSession(record);
   } catch (e) {
     console.error(e);
     return {
       data: result.data,
       message: 'An error occurred while validating your OTP.',
+      success: false,
     };
   }
 
@@ -281,9 +372,11 @@ async function generateUserSession(record: {
 }) {
   const token = await generateSessionToken();
   await createSession(token, record!.id);
-await setSessionTokenCookie(
+  await setSessionTokenCookie(
     token,
-    new Date(Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000)
+    new Date(
+      Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    ),
   );
 }
 

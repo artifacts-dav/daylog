@@ -98,7 +98,21 @@ describe('validateSessionToken', () => {
       id: 'mocked-session-id',
       userId: 1,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
-      user: { id: 1, email: 'test@example.com', name: null, role: 'user', terms: 'accept', secret: null, mfa: false, sortBoardsBy: 'created_desc', sortNotesBy: 'created_desc', failedAttempts: null, lockUntil: null, mfaCode: null, mfaCodeSentAt: null },
+      user: {
+        id: 1,
+        email: 'test@example.com',
+        name: null,
+        role: 'user',
+        terms: 'accept',
+        secret: null,
+        mfa: false,
+        sortBoardsBy: 'created_desc',
+        sortNotesBy: 'created_desc',
+        failedAttempts: null,
+        lockUntil: null,
+        mfaCode: null,
+        mfaCodeSentAt: null,
+      },
     };
     prismaMock.session.findUnique.mockResolvedValue(mockSession);
 
@@ -110,7 +124,21 @@ describe('validateSessionToken', () => {
         userId: 1,
         expiresAt: expect.any(Date),
       },
-      user: { id: 1, email: 'test@example.com', name: null, role: 'user', terms: 'accept', secret: null, mfa: false, sortBoardsBy: 'created_desc', sortNotesBy: 'created_desc', failedAttempts: null, lockUntil: null, mfaCode: null, mfaCodeSentAt: null },
+      user: {
+        id: 1,
+        email: 'test@example.com',
+        name: null,
+        role: 'user',
+        terms: 'accept',
+        secret: null,
+        mfa: false,
+        sortBoardsBy: 'created_desc',
+        sortNotesBy: 'created_desc',
+        failedAttempts: null,
+        lockUntil: null,
+        mfaCode: null,
+        mfaCodeSentAt: null,
+      },
     });
   });
 
@@ -182,7 +210,7 @@ describe('signin', () => {
       failedAttempts: null,
       lockUntil: null,
       mfaCode: null,
-      mfaCodeSentAt: null
+      mfaCodeSentAt: null,
     } as User);
     mocks.getSettings.mockResolvedValue({ mfa: true });
 
@@ -216,7 +244,7 @@ describe('signin', () => {
       failedAttempts: null,
       lockUntil: null,
       mfaCode: null,
-      mfaCodeSentAt: null
+      mfaCodeSentAt: null,
     } as User);
     mocks.getSettings.mockResolvedValue({ mfa: false });
 
@@ -238,9 +266,7 @@ describe('signin', () => {
     });
     const result = await signin({}, formData);
 
-    expect(result.message).toBe(
-      'Invalid email or password.'
-    );
+    expect(result.message).toBe('Invalid email or password.');
   });
 
   it('should return error when user is locked', async () => {
@@ -260,20 +286,35 @@ describe('signin', () => {
     const result = await signin({}, formData);
 
     expect(result.message).toBe(
-      'Account temporarily locked. Please try again later.'
+      'Account temporarily locked. Please try again later.',
     );
   });
 
   it('should lock user account after 5 failed attempts', async () => {
-    mocks.hashPassword.mockReturnValue('mocked-hash-wrong');
+    mocks.SigninFormSchema.safeParse.mockReturnValue({
+      success: true,
+      data: { email: 'test@example.com', password: 'wrong-password' },
+    });
     mocks.verifyPassword.mockResolvedValue(false);
-    prismaMock.user.findFirst.mockResolvedValue({
+    const user = {
       id: 1,
       email: 'test@example.com',
       password: 'mocked-hash',
-      failedAttempts: 5,
+      failedAttempts: 4,
       lockUntil: null,
-    } as User);
+      name: null,
+      secret: null,
+      role: '',
+      terms: '',
+      sortBoardsBy: 'created_desc',
+      sortNotesBy: 'created_desc',
+      mfa: false,
+      mfaCode: null,
+      mfaCodeSentAt: null,
+    } as User;
+    prismaMock.user.findFirst.mockResolvedValue(user);
+    prismaMock.user.findUnique.mockResolvedValue(user);
+    prismaMock.user.update.mockResolvedValue(user);
 
     const formData = mockFormData({
       email: 'test@example.com',
@@ -284,13 +325,11 @@ describe('signin', () => {
 
     expect(prismaMock.user.update).toHaveBeenCalledWith({
       where: { id: 1 },
-      data: { failedAttempts: 6, lockUntil: expect.any(Date) },
+      data: { failedAttempts: 5, lockUntil: expect.any(Date) },
     });
 
     expect(result.message).toBe('Invalid email or password.');
   });
-
-
 });
 
 describe('getCurrentSession', () => {
@@ -299,7 +338,21 @@ describe('getCurrentSession', () => {
       id: 'mocked-session-id',
       userId: 1,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
-      user: { id: 1, email: 'test@example.com', name: null, role: 'user', terms: 'accept', secret: null, mfa: false, sortBoardsBy: 'created_desc', sortNotesBy: 'created_desc', failedAttempts: null, lockUntil: null, mfaCode: null, mfaCodeSentAt: null },
+      user: {
+        id: 1,
+        email: 'test@example.com',
+        name: null,
+        role: 'user',
+        terms: 'accept',
+        secret: null,
+        mfa: false,
+        sortBoardsBy: 'created_desc',
+        sortNotesBy: 'created_desc',
+        failedAttempts: null,
+        lockUntil: null,
+        mfaCode: null,
+        mfaCodeSentAt: null,
+      },
     };
     prismaMock.session.findUnique.mockResolvedValue(mockSession);
 
@@ -311,7 +364,21 @@ describe('getCurrentSession', () => {
         userId: 1,
         expiresAt: expect.any(Date),
       },
-      user: { id: 1, email: 'test@example.com', name: null, role: 'user', terms: 'accept', secret: null, mfa: false, sortBoardsBy: 'created_desc', sortNotesBy: 'created_desc', failedAttempts: null, lockUntil: null, mfaCode: null, mfaCodeSentAt: null },
+      user: {
+        id: 1,
+        email: 'test@example.com',
+        name: null,
+        role: 'user',
+        terms: 'accept',
+        secret: null,
+        mfa: false,
+        sortBoardsBy: 'created_desc',
+        sortNotesBy: 'created_desc',
+        failedAttempts: null,
+        lockUntil: null,
+        mfaCode: null,
+        mfaCodeSentAt: null,
+      },
     });
   });
 
@@ -366,7 +433,7 @@ describe('validateMFA', () => {
       failedAttempts: null,
       lockUntil: null,
       mfaCode: null,
-      mfaCodeSentAt: null
+      mfaCodeSentAt: null,
     } as User);
 
     const formData = mockFormData({ id: '1', password: '123456' });
@@ -374,6 +441,111 @@ describe('validateMFA', () => {
 
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/');
     expect(redirect).toHaveBeenCalledWith('/');
+  });
+
+  it('should lock user account after 5 failed OTP attempts', async () => {
+    mocks.ValidateMFAFormSchema.safeParse.mockReturnValue({
+      success: true,
+      data: { id: 1, password: 'wrong-otp' },
+    });
+    mocks.validateTOTP.mockReturnValue(false);
+    const user = {
+      id: 1,
+      secret: 'mocked-secret',
+      name: null,
+      email: '',
+      password: '',
+      mfa: false,
+      role: '',
+      terms: '',
+      sortBoardsBy: 'created_desc',
+      sortNotesBy: 'created_desc',
+      failedAttempts: 4,
+      lockUntil: null,
+      mfaCode: null,
+      mfaCodeSentAt: null,
+    } as User;
+    prismaMock.user.findUnique.mockResolvedValue(user);
+    prismaMock.user.findFirst.mockResolvedValue(user);
+    prismaMock.user.update.mockResolvedValue(user);
+
+    const formData = mockFormData({ id: '1', password: 'wrong-otp' });
+    const result = await validateMFA({}, formData);
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: { failedAttempts: 5, lockUntil: expect.any(Date) },
+    });
+
+    expect(result.message).toBe(
+      'OTP is not valid or is expired. 1 attempts remaining.',
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it('should return error with remaining attempts when OTP validation fails', async () => {
+    mocks.ValidateMFAFormSchema.safeParse.mockReturnValue({
+      success: true,
+      data: { id: 1, password: 'wrong-otp' },
+    });
+    mocks.validateTOTP.mockImplementation(() => {
+      throw new Error('Unexpected error');
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 1,
+      secret: 'mocked-secret',
+      name: null,
+      email: '',
+      password: '',
+      mfa: false,
+      role: '',
+      terms: '',
+      sortBoardsBy: 'created_desc',
+      sortNotesBy: 'created_desc',
+      failedAttempts: 2,
+      lockUntil: null,
+      mfaCode: null,
+      mfaCodeSentAt: null,
+    } as User);
+
+    const formData = mockFormData({ id: '1', password: 'wrong-otp' });
+    const result = await validateMFA({}, formData);
+
+    expect(result.message).toBe(
+      'An error occurred while validating your OTP.',
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it('should return error when user is locked during OTP validation', async () => {
+    mocks.ValidateMFAFormSchema.safeParse.mockReturnValue({
+      success: true,
+      data: { id: 1, password: '123456' },
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 1,
+      secret: 'mocked-secret',
+      name: null,
+      email: '',
+      password: '',
+      mfa: false,
+      role: '',
+      terms: '',
+      sortBoardsBy: 'created_desc',
+      sortNotesBy: 'created_desc',
+      failedAttempts: 5,
+      lockUntil: new Date(Date.now() + 1000 * 60 * 15),
+      mfaCode: null,
+      mfaCodeSentAt: null,
+    } as User);
+
+    const formData = mockFormData({ id: '1', password: '123456' });
+    const result = await validateMFA({}, formData);
+
+    expect(result.message).toBe(
+      'Account temporarily locked. Please try again later.',
+    );
+    expect(result.success).toBe(false);
   });
 });
 
@@ -393,7 +565,7 @@ describe('getUserMFA', () => {
       failedAttempts: null,
       lockUntil: null,
       mfaCode: null,
-      mfaCodeSentAt: null
+      mfaCodeSentAt: null,
     } as User);
 
     const result = await getUserMFA(1);

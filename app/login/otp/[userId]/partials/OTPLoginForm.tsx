@@ -17,8 +17,10 @@ export default function OTPLoginForm({ userId }: { userId: number }) {
   return (
     <>
       {state?.message && (
-        <div className="alert alert-danger alert-dismissible" role="alert">
-          <h3 className="mb-1">Could not login</h3>
+        <div className={`alert alert-dismissible ${state.message.includes('locked') ? 'alert-warning' : 'alert-danger'}`} role="alert">
+          <h3 className="mb-1">
+            {state.message.includes('locked') ? 'Account Locked' : 'Could not login'}
+          </h3>
           <p>{state.message}</p>
           <a
             className="btn-close"
