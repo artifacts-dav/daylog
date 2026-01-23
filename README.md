@@ -8,7 +8,7 @@
 
 ### Stable version
 
-If you want to use the stable version of daylog, you can find it [here](https://github.com/DigitalArtifactory/daylog/releases). Keep in mind that main branch is always in development and may not be stable.
+If you want to use the stable version of daylog, you can find it [here](https://github.com/artifacts-oss/daylog/releases). Keep in mind that main branch is always in development and may not be stable.
 
 ### Features
 
@@ -71,7 +71,7 @@ docker run -d \
 1. **Download docker-compose.yml file:**
 
 ```bash
-wget https://github.com/digitalartifactory/daylog/releases/latest/download/docker-compose.yml
+wget https://github.com/artifacts-oss/daylog/releases/latest/download/docker-compose.yml
 ```
 
 2. **Setup .env file:**
@@ -79,7 +79,7 @@ wget https://github.com/digitalartifactory/daylog/releases/latest/download/docke
 Download the .env.example file and rename it to .env.
 
 ```bash
-wget https://github.com/digitalartifactory/daylog/releases/latest/download/default.env.example -O .env
+wget https://github.com/artifacts-oss/daylog/releases/latest/download/default.env.example -O .env
 ```
 
 You can keep the default values or you can change them.
@@ -97,7 +97,7 @@ To install and run daylog in a production environment, follow these steps:
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/DigitalArtifactory/daylog.git
+git clone https://github.com/artifacts-oss/daylog.git
 cd daylog
 ```
 
