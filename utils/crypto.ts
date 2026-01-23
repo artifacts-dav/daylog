@@ -4,6 +4,7 @@ import {
   encodeHexLowerCase,
 } from '@oslojs/encoding';
 import bcrypt from 'bcryptjs';
+import { createHash } from 'crypto';
 
 export function encodeBase32(bytes: Uint8Array) {
   return encodeBase32LowerCaseNoPadding(bytes);
@@ -19,5 +20,15 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  // Legacy SHA256 hash check
+  if (hashedPassword.length === 64 && /^[a-f0-9]{64}$/.test(hashedPassword)) {
+    return signPasswordLegacy(password) === hashedPassword;
+  }
   return await bcrypt.compare(password, hashedPassword);
+}
+
+export function signPasswordLegacy(password: string): string {
+  return createHash('sha256')
+    .update(password, 'utf8')
+    .digest('hex');
 }
