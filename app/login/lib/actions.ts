@@ -35,7 +35,6 @@ async function checkAttemptLimit(user: {
   lockUntil?: Date | null;
 }): Promise<AttemptLimitResult> {
   const MAX_FAILED_ATTEMPTS = SECURITY_CONFIG.LOCKOUT.MAX_FAILED_ATTEMPTS;
-  const LOCK_DURATION = SECURITY_CONFIG.LOCKOUT.LOCK_DURATION_MS;
   
   if (user.lockUntil && Date.now() < user.lockUntil.getTime()) {
     return {

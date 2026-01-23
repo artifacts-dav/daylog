@@ -10,6 +10,7 @@ import {
   validateSessionToken,
 } from './actions';
 import { User } from '@/prisma/generated/client';
+import { SECURITY_CONFIG } from '@/config/security';
 
 const mocks = vi.hoisted(() => ({
   getSettings: vi.fn(),
@@ -275,7 +276,7 @@ describe('signin', () => {
       email: 'test@example.com',
       password: 'mocked-hash',
       failedAttempts: 5,
-      lockUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      lockUntil: new Date(Date.now() + SECURITY_CONFIG.LOCKOUT.LOCK_DURATION_MS),
     } as User);
 
     const formData = mockFormData({
@@ -534,7 +535,7 @@ describe('validateMFA', () => {
       sortBoardsBy: 'created_desc',
       sortNotesBy: 'created_desc',
       failedAttempts: 5,
-      lockUntil: new Date(Date.now() + 1000 * 60 * 15),
+      lockUntil: new Date(Date.now() + SECURITY_CONFIG.LOCKOUT.LOCK_DURATION_MS),
       mfaCode: null,
       mfaCodeSentAt: null,
     } as User);
