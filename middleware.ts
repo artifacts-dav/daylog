@@ -120,6 +120,11 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
 
   if (pathname === '/login') {
     const token = request.cookies.get('session')?.value;
+
+    if (!token || !token.trim() || token === 'undefined') {
+      return NextResponse.next();
+    }
+
     const sessionResponse = await fetch(
       `${request.nextUrl.origin}/api/v1/auth/session?token=${token}`,
       {
@@ -148,7 +153,7 @@ const sessionData = await sessionResponse.json();
       }
     );
     if (!sessionResponse.ok) {
-      return NextResponse.next();
+      return NextResponse.redirect(new URL('/login', request.url));
     }
 const sessionData = await sessionResponse.json();
     const isLoggedIn = sessionData.user !== null;
