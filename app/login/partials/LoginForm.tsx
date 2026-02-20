@@ -3,10 +3,13 @@
 import FormField from '@/components/FormField';
 import Image from 'next/image';
 import { useActionState, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { signin } from '../lib/actions';
 import { validateAllowRegistration } from '@/app/register/lib/actions';
 
 export default function LoginForm() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get('callbackUrl') || '/';
   const [state, action, pending] = useActionState(signin, undefined);
   const [isRegAllowed, setIsRegAllowed] = useState(false);
 
@@ -71,6 +74,7 @@ export default function LoginForm() {
                 errors={state?.errors?.password}
                 autoComplete="off"
               />
+              <input type="hidden" name="callbackUrl" value={callbackUrl} />
               <div className="form-footer">
                 <button
                   disabled={pending}

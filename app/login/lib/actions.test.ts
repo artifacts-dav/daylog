@@ -223,7 +223,7 @@ describe('signin', () => {
     await signin({}, formData);
 
     expect(mocks.revalidatePath).toHaveBeenCalledWith('/login/otp/1');
-    expect(redirect).toHaveBeenCalledWith('/login/otp/1');
+    expect(redirect).toHaveBeenCalledWith('/login/otp/1?callbackUrl=%2F');
   });
 
   it('should redirect to / if signin is successful', async () => {
