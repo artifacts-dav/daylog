@@ -28,8 +28,10 @@ vi.mock('@/utils/image', () => ({
 }));
 
 vi.mock('./components/Editor', () => ({
-  default: vi.fn(({ note }: { note: Note }) => (
-    <div data-testid="note">{note.title}</div>
+  default: vi.fn(({ note, isOwner }: { note: Note; isOwner: boolean }) => (
+    <div data-testid="note" data-is-owner={isOwner.toString()}>
+      {note.title}
+    </div>
   )),
 }));
 
@@ -53,7 +55,11 @@ describe('Note Page', () => {
     mocks.getCurrentSession.mockResolvedValue({
       user: { id: 1, name: 'Test User' },
     });
-    mocks.getBoard.mockResolvedValue({ id: 1, title: 'Test Board' });
+    mocks.getBoard.mockResolvedValue({
+      id: 1,
+      title: 'Test Board',
+      userId: 1,
+    });
     mocks.getNote.mockResolvedValue({ id: 1, title: 'Test Note' });
 
     render(
@@ -61,6 +67,7 @@ describe('Note Page', () => {
     );
 
     expect(screen.getByTestId('note')).toBeInTheDocument();
+    expect(screen.getByTestId('note')).toHaveAttribute('data-is-owner', 'true');
   });
 
   it('should return null if note does not exist', async () => {

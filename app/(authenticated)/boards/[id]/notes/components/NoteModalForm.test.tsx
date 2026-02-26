@@ -200,11 +200,11 @@ describe('NoteModalForm', () => {
     fireEvent.click(screen.getByText('Update'));
 
     await waitFor(() => {
-      expect(mocks.saveImage).toHaveBeenCalledWith(
-        1,
-        'resizedDataUrl',
-        'test.jpg',
-      );
+      expect(mocks.saveImage).toHaveBeenCalledWith({
+        noteId: 1,
+        imageUrl: 'resizedDataUrl',
+        existentFileName: 'test.jpg',
+      });
     });
   });
 

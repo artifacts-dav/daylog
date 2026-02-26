@@ -28,6 +28,14 @@ import { isBase64, isUrl, truncateWord } from './text';
 import { generateTOTP, generateTOTPSecret, validateTOTP } from './totp';
 import { randomDelay } from './delay';
 import getSorting from './sorting';
+import {
+  computeDiff,
+  applyPatch,
+  validatePatch,
+  areTextsIdentical,
+  getDiffSummary,
+  getDiffPreview,
+} from './diff';
 import { Prisma } from '@/prisma/generated/client';
 
 const mocks = vi.hoisted(() => ({
@@ -504,5 +512,68 @@ describe('Rate Limit Utils', () => {
     expect(authRateLimiter).toBeInstanceOf(RateLimiter);
     expect(generalRateLimiter).toBeInstanceOf(RateLimiter);
     expect(uploadRateLimiter).toBeInstanceOf(RateLimiter);
+  });
+});
+
+describe('Diff Utils', () => {
+  it('computes diff correctly', () => {
+    const oldText = 'hello world';
+    const newText = 'hello there world';
+    const patch = computeDiff(oldText, newText);
+    expect(patch).toContain('@@');
+    expect(patch).toContain('there');
+  });
+
+  it('applies patch correctly', () => {
+    const oldText = 'hello world';
+    const newText = 'hello there world';
+    const patch = computeDiff(oldText, newText);
+    const result = applyPatch(oldText, patch);
+    expect(result).toBe(newText);
+  });
+
+  it('fails to apply invalid patch', () => {
+    const oldText = 'hello world';
+    const patch = 'invalid patch string';
+    const result = applyPatch(oldText, patch);
+    expect(result).toBeNull();
+  });
+
+  it('validates patch correctly', () => {
+    const oldText = 'hello world';
+    const newText = 'hello there world';
+    const patch = computeDiff(oldText, newText);
+    const isValid = validatePatch(oldText, patch);
+    expect(isValid).toBe(true);
+  });
+
+  it('returns false for invalid patch validation', () => {
+    const oldText = 'hello world';
+    const patch = 'invalid patch string';
+    const isValid = validatePatch(oldText, patch);
+    expect(isValid).toBe(false);
+  });
+
+  it('checks text identity', () => {
+    expect(areTextsIdentical('abc', 'abc')).toBe(true);
+    expect(areTextsIdentical('abc', 'def')).toBe(false);
+  });
+
+  it('gets diff summary', () => {
+    const oldText = 'hello world';
+    const newText = 'hello there world';
+    const patch = computeDiff(oldText, newText);
+    const summary = getDiffSummary(patch);
+    // " there" is added (6 chars)
+    expect(summary.additions).toBeGreaterThan(0);
+    expect(summary.deletions).toBe(0);
+  });
+
+  it('gets diff preview', () => {
+    const oldText = 'hello world';
+    const newText = 'hello there world';
+    const patch = computeDiff(oldText, newText);
+    const preview = getDiffPreview(patch);
+    expect(preview).toContain('there');
   });
 });

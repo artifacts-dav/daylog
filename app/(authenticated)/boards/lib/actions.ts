@@ -11,7 +11,7 @@ import { isBase64, isUrl } from '@/utils/text';
 import fs from 'fs';
 
 export async function createBoard(
-  board: Prisma.BoardCreateInput
+  board: Prisma.BoardCreateInput,
 ): Promise<number | null> {
   const { user } = await getCurrentSession();
 
@@ -73,7 +73,10 @@ export async function getBoardsCount(): Promise<number> {
   return count;
 }
 
-export async function getBoards(sort: string, perPage: number = 10): Promise<Board[] | null> {
+export async function getBoards(
+  sort: string,
+  perPage: number = 10,
+): Promise<Board[] | null> {
   const { user } = await getCurrentSession();
 
   if (!user) {
@@ -84,7 +87,7 @@ export async function getBoards(sort: string, perPage: number = 10): Promise<Boa
   const boards = await prisma.board.findMany({
     where: { userId: user?.id },
     take: perPage,
-    orderBy: [sorting]
+    orderBy: [sorting],
   });
 
   return boards;
@@ -111,11 +114,15 @@ export async function getBoard(boardId: number): Promise<Board | null> {
   return board;
 }
 
-export async function saveImage(
-  boardId: number,
-  imageUrl: string,
-  existentFileName?: string | null
-): Promise<string | null> {
+export async function saveImage({
+  boardId,
+  imageUrl,
+  existentFileName,
+}: {
+  boardId: number;
+  imageUrl: string;
+  existentFileName?: string | null;
+}): Promise<string | null> {
   try {
     const { user } = await getCurrentSession();
 
@@ -125,7 +132,7 @@ export async function saveImage(
 
     if (!isBase64(imageUrl) && !isUrl(imageUrl)) {
       throw new Error(
-        'Invalid image format. Must be a valid URL or Base64 string.'
+        'Invalid image format. Must be a valid URL or Base64 string.',
       );
     }
 
@@ -149,7 +156,7 @@ export async function saveImage(
 
 export async function deleteImage(
   boardId: number,
-  filePath?: string | null
+  filePath?: string | null,
 ): Promise<void> {
   try {
     const { user } = await getCurrentSession();

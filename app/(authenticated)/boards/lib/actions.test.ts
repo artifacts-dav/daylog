@@ -143,7 +143,10 @@ describe('Board Actions', () => {
     mocks.saveBase64File.mockReturnValue(filepath);
     prismaMock.board.update.mockResolvedValue(board as Board);
 
-    const result = await saveImage(board.id!, imageBase64);
+    const result = await saveImage({
+      boardId: board.id!,
+      imageUrl: imageBase64,
+    });
     expect(result).toBe(imageBase64);
     expect(mocks.saveBase64File).toHaveBeenCalledWith(imageBase64);
     expect(prismaMock.board.update).toHaveBeenCalledWith({
@@ -163,7 +166,7 @@ describe('Board Actions', () => {
       enableS3: true,
     });
 
-    const key = await saveImage(boardId, imageBase64);
+    const key = await saveImage({ boardId, imageUrl: imageBase64 });
 
     expect(mocks.uploadFileS3).toHaveBeenCalled();
     expect(key).not.toBeNull();
@@ -173,7 +176,7 @@ describe('Board Actions', () => {
     const fileurl = 'http://example.com/image.jpg';
     prismaMock.board.update.mockResolvedValue(board as Board);
 
-    const result = await saveImage(board.id!, fileurl);
+    const result = await saveImage({ boardId: board.id!, imageUrl: fileurl });
     expect(result).toBe(fileurl);
     expect(prismaMock.board.update).toHaveBeenCalledWith({
       where: { id: board.id, userId: user.id },

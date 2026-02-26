@@ -72,11 +72,15 @@ export default function NoteModalForm({
     if ((!imageFile && !imageUrl) || !noteId) return;
     if (imageFile) {
       resizeImage(imageFile, 1920, 1080, async (resizedDataUrl) => {
-        await saveImage(noteId, resizedDataUrl, note?.imageUrl);
+        await saveImage({
+          noteId,
+          imageUrl: resizedDataUrl,
+          existentFileName: note?.imageUrl,
+        });
         router.refresh();
       });
     } else {
-      await saveImage(noteId, imageUrl, note?.imageUrl);
+      await saveImage({ noteId, imageUrl, existentFileName: note?.imageUrl });
       router.refresh();
     }
   }

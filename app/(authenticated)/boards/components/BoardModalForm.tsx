@@ -83,11 +83,15 @@ export default function BoardModalForm({
     if ((!imageFile && !imageUrl) || !boardId) return;
     if (imageFile) {
       resizeImage(imageFile, 1920, 1080, async (resizedDataUrl) => {
-        await saveImage(boardId, resizedDataUrl, board?.imageUrl);
+        await saveImage({
+          boardId,
+          imageUrl: resizedDataUrl,
+          existentFileName: board?.imageUrl,
+        });
         router.refresh();
       });
     } else {
-      await saveImage(boardId, imageUrl, board?.imageUrl);
+      await saveImage({ boardId, imageUrl, existentFileName: board?.imageUrl });
       router.refresh();
     }
   }

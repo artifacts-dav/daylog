@@ -229,7 +229,7 @@ describe('Note Actions', () => {
     mocks.saveBase64File.mockReturnValue(filepath);
     prismaMock.note.update.mockResolvedValue({} as Note);
 
-    const result = await saveImage(noteId, imageBase64);
+    const result = await saveImage({ noteId, imageUrl: imageBase64 });
 
     expect(result).toBe(imageBase64);
     expect(saveBase64File).toHaveBeenCalledWith(imageBase64);
@@ -242,7 +242,7 @@ describe('Note Actions', () => {
   it('should not save image if is not an url or base64', async () => {
     const noteId = 1;
     const fileurl = 'bad-url-or-base64';
-    const result = await saveImage(noteId, fileurl);
+    const result = await saveImage({ noteId, imageUrl: fileurl });
     expect(result).toBeNull();
   });
 
@@ -251,7 +251,11 @@ describe('Note Actions', () => {
     const noteId = 1;
     const filepath = 'http://example.com/image.jpg';
     const existentFilePath = 'path/to/existent/image.jpg';
-    const result = await saveImage(noteId, filepath, existentFilePath);
+    const result = await saveImage({
+      noteId,
+      imageUrl: filepath,
+      existentFileName: existentFilePath,
+    });
     expect(result).toBe(filepath);
     expect(mocks.removeFile).toHaveBeenCalledWith(existentFilePath);
   });
@@ -262,7 +266,7 @@ describe('Note Actions', () => {
 
     prismaMock.note.update.mockResolvedValue({} as Note);
 
-    const result = await saveImage(noteId, fileurl);
+    const result = await saveImage({ noteId, imageUrl: fileurl });
 
     expect(result).toBe(fileurl);
     expect(prisma.note.update).toHaveBeenCalledWith({
@@ -282,7 +286,7 @@ describe('Note Actions', () => {
       enableS3: true,
     });
 
-    const key = await saveImage(noteId, imageBase64);
+    const key = await saveImage({ noteId, imageUrl: imageBase64 });
 
     expect(mocks.uploadFileS3).toHaveBeenCalled();
     expect(key).not.toBeNull();
@@ -317,7 +321,7 @@ describe('Note Actions', () => {
     prismaMock.note.findUnique.mockResolvedValue({ id: noteId } as Note);
     prismaMock.picture.create.mockResolvedValue(picture);
 
-    const result = await savePicture(noteId, picture.imageUrl);
+    const result = await savePicture({ noteId, imageUrl: picture.imageUrl });
 
     expect(result).toEqual(picture.imageUrl);
     expect(prisma.picture.create).toHaveBeenCalledWith({

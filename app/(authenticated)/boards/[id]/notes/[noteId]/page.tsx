@@ -56,7 +56,15 @@ export default async function NotePage({
         }
         breadcrumbs={breadcrumbs}
       />
-      <PageBody>{note && <Editor note={note} />}</PageBody>
+      <PageBody>
+        {note && (
+          <Editor
+            note={note}
+            isOwner={board.userId === user.id}
+            currentUserId={user.id}
+          />
+        )}
+      </PageBody>
       <PageFooter />
     </PageContainer>
   );

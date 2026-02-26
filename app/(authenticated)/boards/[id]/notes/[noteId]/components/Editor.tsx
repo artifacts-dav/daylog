@@ -14,27 +14,32 @@ import { getImageUrlOrFile, resizeImage } from '@/utils/image';
 import MDEditor from '@uiw/react-md-editor';
 import rehypeSanitize from 'rehype-sanitize';
 import { useTheme } from 'next-themes';
-import {
-  PhotoIcon,
-  XMarkIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline';
+import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import ChangeHistorySidebar from './ChangeHistorySidebar';
+import { History } from 'lucide-react';
 
 type NoteEditorType = {
   note: Note;
+  isOwner?: boolean;
+  currentUserId?: number;
 };
 
-export default function Editor({ note }: NoteEditorType) {
+export default function Editor({
+  note,
+  isOwner,
+  currentUserId,
+}: NoteEditorType) {
   const router = useRouter();
 
   const [markdown, setMarkdown] = useState(note.content ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sidebarRefreshKey, setSidebarRefreshKey] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,30 +62,36 @@ export default function Editor({ note }: NoteEditorType) {
     loadPictures();
   }, [note.id, loadPictures]);
 
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(
-    null,
-  );
+  // Sync state when note prop changes (e.g., after restore/refresh)
+  useEffect(() => {
+    setMarkdown(note.content ?? '');
+    localStorage.setItem(`note-${note.id}`, note.content ?? '');
+  }, [note.content, note.id]);
+
+  /* Refactor: Use useRef for timer to avoid re-renders and dependency modification */
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateNoteHandler = useCallback(
     async (content: string) => {
       if (!note) return;
       await updateNote({ ...note, content });
+      setSidebarRefreshKey((prev) => prev + 1);
     },
     [note],
   );
 
   const debounceSave = useCallback(
     (content: string, callback: () => void) => {
-      if (debounceTimer) clearTimeout(debounceTimer);
+      // Clear the previous timer
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
-      const timeout = setTimeout(() => {
+      // Set a new timer
+      debounceTimerRef.current = setTimeout(() => {
         updateNoteHandler(content);
         callback();
-      }, 1000);
-
-      setDebounceTimer(timeout);
+      }, 1000); // Waits for 1 second of inactivity before saving
     },
-    [updateNoteHandler, debounceTimer],
+    [updateNoteHandler],
   );
 
   const saveContent = useCallback(
@@ -120,7 +131,10 @@ export default function Editor({ note }: NoteEditorType) {
 
     try {
       resizeImage(file, 1920, 1080, async (resizedDataUrl) => {
-        const imageUrl = await savePicture(note.id, resizedDataUrl);
+        const imageUrl = await savePicture({
+          noteId: note.id,
+          imageUrl: resizedDataUrl,
+        });
         if (!imageUrl) return;
         await loadPictures();
       });
@@ -139,162 +153,210 @@ export default function Editor({ note }: NoteEditorType) {
   };
 
   return (
-    <motion.div layout className="flex flex-col lg:flex-row items-start w-full">
-      {/* Sidebar for Pictures */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{
-              width: 0,
-              opacity: 0,
-              x: -50,
-              marginRight: 0,
-              marginBottom: 0,
-            }}
-            animate={{
-              width: 340,
-              opacity: 1,
-              x: 0,
-              marginRight: 24,
-            }}
-            exit={{
-              width: 0,
-              opacity: 0,
-              x: -50,
-              marginRight: 0,
-              marginBottom: 0,
-            }}
-            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-            className="flex-shrink-0 flex flex-col overflow-hidden max-lg:!mr-0 max-lg:mb-6 lg:mb-0"
-          >
-            <div className="w-[340px] rounded-[20px] bg-muted border border-border p-6 flex flex-col gap-6 shadow-sm">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[20px] font-[800] text-foreground tracking-tight">
-                    Pictures
-                  </h3>
+    <>
+      <motion.div
+        layout
+        className="flex flex-col lg:flex-row items-stretch w-full"
+      >
+        {/* Sidebar for History */}
+        <AnimatePresence>
+          {showHistory && (
+            <ChangeHistorySidebar
+              noteId={note.id}
+              isOwner={isOwner}
+              currentUserId={currentUserId}
+              isOpen={showHistory}
+              onClose={() => setShowHistory(false)}
+              onRestoreSuccess={() => {
+                router.refresh();
+              }}
+              refreshKey={sidebarRefreshKey}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Sidebar for Pictures */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div
+              layout
+              initial={{
+                width: 0,
+                opacity: 0,
+              }}
+              animate={{
+                width:
+                  typeof window !== 'undefined' && window.innerWidth < 1024
+                    ? '100%'
+                    : 340,
+                opacity: 1,
+              }}
+              exit={{
+                width: 0,
+                opacity: 0,
+              }}
+              transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+              className="flex-shrink-0 flex flex-col overflow-hidden max-lg:!mr-0 max-lg:mb-6 lg:mb-0 self-start w-full lg:w-[340px] lg:mr-6"
+            >
+              <div className="w-full lg:w-[340px] rounded-[20px] bg-muted border border-border p-6 flex flex-col gap-6 shadow-sm h-fit max-h-[calc(100vh-120px)] overflow-hidden">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[20px] font-[800] text-foreground tracking-tight">
+                      Pictures
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full hover:bg-accent transition-colors"
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <XMarkIcon className="h-5 w-5 text-muted-foreground" />
+                    </Button>
+                  </div>
+                  <p className="text-[14px] font-[500] text-muted-foreground leading-relaxed">
+                    Click to insert an image into the editor at your cursor
+                    position.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 min-h-[120px] content-start overflow-y-auto custom-scrollbar pr-2">
+                  {note &&
+                    note.imageUrl &&
+                    PicturePreview({
+                      imageUrl: note.imageUrl,
+                      onClick: () => {
+                        handlePlaceImage(getImageUrlOrFile(note.imageUrl!));
+                      },
+                      onDelete: async () => {
+                        await deleteImage(note.id, note.imageUrl);
+                        router.refresh();
+                      },
+                    })}
+                  {pictures.map((picture, key) => (
+                    <PicturePreview
+                      key={key}
+                      pictureId={picture.id}
+                      onDelete={() => handleDeletePicture(picture.id)}
+                      imageUrl={picture.imageUrl}
+                      onClick={() => {
+                        handlePlaceImage(getImageUrlOrFile(picture.imageUrl));
+                      }}
+                    />
+                  ))}
+
+                  {pictures.length === 0 && note.imageUrl === null && (
+                    <div className="col-span-2 flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-border rounded-[16px] bg-background">
+                      <PhotoIcon className="h-8 w-8 text-muted-foreground/70 mb-2 opacity-50" />
+                      <p className="text-[12px] font-[500] text-muted-foreground/70 uppercase tracking-wider">
+                        No pictures
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full hover:bg-accent transition-colors"
-                    onClick={() => setIsSidebarOpen(false)}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full rounded-[12px] font-[700] text-primary-foreground shadow-sm transition-all"
                   >
-                    <XMarkIcon className="h-5 w-5 text-muted-foreground" />
+                    <PhotoIcon className="h-5 w-5 mr-2" />
+                    Upload Picture
                   </Button>
                 </div>
-                <p className="text-[14px] font-[500] text-muted-foreground leading-relaxed">
-                  Click to insert an image into the editor at your cursor
-                  position.
-                </p>
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-              <div className="grid grid-cols-2 gap-3 min-h-[120px] content-start">
-                {note &&
-                  note.imageUrl &&
-                  PicturePreview({
-                    imageUrl: note.imageUrl,
-                    onClick: () => {
-                      handlePlaceImage(getImageUrlOrFile(note.imageUrl!));
-                    },
-                    onDelete: async () => {
-                      await deleteImage(note.id, note.imageUrl);
-                      router.refresh();
-                    },
-                  })}
-                {pictures.map((picture, key) => (
-                  <PicturePreview
-                    key={key}
-                    pictureId={picture.id}
-                    onDelete={() => handleDeletePicture(picture.id)}
-                    imageUrl={picture.imageUrl}
-                    onClick={() => {
-                      handlePlaceImage(getImageUrlOrFile(picture.imageUrl));
-                    }}
-                  />
-                ))}
-
-                {pictures.length === 0 && note.imageUrl === null && (
-                  <div className="col-span-2 flex flex-col items-center justify-center py-6 text-center border-2 border-dashed border-border rounded-[16px] bg-background">
-                    <PhotoIcon className="h-8 w-8 text-muted-foreground/70 mb-2 opacity-50" />
-                    <p className="text-[12px] font-[500] text-muted-foreground/70 uppercase tracking-wider">
-                      No pictures
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full rounded-[12px] font-[700] text-primary-foreground shadow-sm transition-all"
-                >
-                  <PhotoIcon className="h-5 w-5 mr-2" />
-                  Upload Picture
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Main Editor Area */}
-      <motion.div layout className="flex-1 w-full flex flex-col gap-4 min-w-0">
-        <div className="flex justify-between items-center w-full">
-          <Button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            variant="outline"
-            className="rounded-[12px] bg-background text-foreground border-border hover:bg-accent shadow-sm font-[600] transition-all"
-          >
-            <PhotoIcon className="h-5 w-5 mr-2 text-muted-foreground" />
-            {isSidebarOpen ? 'Close Gallery' : 'Open Gallery'}
-            {isSidebarOpen ? (
-              <ChevronLeftIcon className="h-4 w-4 ml-2 text-muted-foreground" />
-            ) : (
-              <ChevronRightIcon className="h-4 w-4 ml-2 text-muted-foreground" />
-            )}
-          </Button>
-
-          <AnimatePresence>
-            {isSaving && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2 bg-background border border-border px-3 py-1.5 rounded-[12px] shadow-sm"
+        {/* Main Editor Area */}
+        <motion.div
+          layout
+          className="flex-1 flex flex-col gap-4 min-w-0 overflow-hidden"
+        >
+          <div className="flex justify-between items-center w-full">
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => {
+                  setIsSidebarOpen(!isSidebarOpen);
+                  if (!isSidebarOpen) setShowHistory(false);
+                }}
+                variant="outline"
+                className={`rounded-[12px] border-border shadow-sm font-[600] transition-all px-3 md:px-4 ${
+                  isSidebarOpen
+                    ? 'bg-accent text-accent-foreground'
+                    : 'bg-background text-foreground hover:bg-accent'
+                }`}
               >
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                <span className="text-[12px] font-[500] text-muted-foreground uppercase tracking-wider">
-                  Saving
+                <PhotoIcon className="h-5 w-5 md:mr-2 text-muted-foreground" />
+                <span className="hidden md:inline">
+                  {isSidebarOpen ? 'Close Gallery' : 'Open Gallery'}
                 </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="rounded-[20px] bg-background border border-border shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-500">
-          <div data-color-mode={theme} className="w-full">
-            <MDEditor
-              data-testid="editor"
-              height={600}
-              minHeight={400}
-              value={markdown}
-              onChange={(value) => setMarkdown(value ?? '')}
-              previewOptions={{
-                rehypePlugins: [[rehypeSanitize]],
-              }}
-              style={{ borderRadius: 0, border: 'none' }}
-              className="!border-0 !rounded-none !bg-background"
-            />
+              </Button>
+
+              <Button
+                onClick={() => {
+                  setShowHistory(!showHistory);
+                  if (!showHistory) setIsSidebarOpen(false);
+                }}
+                variant="outline"
+                className={`rounded-[12px] border-border shadow-sm font-[600] transition-all px-3 md:px-4 ${
+                  showHistory
+                    ? 'bg-accent text-accent-foreground'
+                    : 'bg-background text-foreground hover:bg-accent'
+                }`}
+                title="Toggle change history"
+              >
+                <History className="h-4 w-4 md:mr-2 text-muted-foreground" />
+                <span className="hidden md:inline">
+                  {showHistory ? 'Close History' : 'Open History'}
+                </span>
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <AnimatePresence>
+                {isSaving && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2 bg-background border border-border px-2 md:px-3 py-1.5 rounded-[12px] shadow-sm"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span className="text-[10px] md:text-[12px] font-[500] text-muted-foreground uppercase tracking-wider hidden sm:inline">
+                      Saving
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
+          <div className="rounded-[20px] bg-background border border-border shadow-sm relative overflow-hidden group hover:shadow-md transition-all duration-500">
+            <div data-color-mode={theme} className="w-full">
+              <MDEditor
+                data-testid="editor"
+                height={600}
+                minHeight={400}
+                value={markdown}
+                onChange={(value) => setMarkdown(value ?? '')}
+                previewOptions={{
+                  rehypePlugins: [[rehypeSanitize]],
+                }}
+                style={{ borderRadius: 0, border: 'none' }}
+                className="!border-0 !rounded-none !bg-background"
+              />
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </>
   );
 }
 
