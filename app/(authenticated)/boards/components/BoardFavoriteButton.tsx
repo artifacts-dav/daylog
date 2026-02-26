@@ -26,16 +26,16 @@ export default function BoardFavoriteButton({
     <Button
       variant="ghost"
       size="icon"
-      className="h-8 w-8 text-white hover:text-accent-red hover:bg-white/10"
+      className="h-8 w-8 text-white hover:text-red-400 hover:bg-white/10 transition-all duration-300"
       onClick={handleFavoriteClick}
     >
       {board.favorite ? (
         <HeartSolidIcon
           data-testid="filled-heart"
-          className="h-5 w-5 text-accent-red"
+          className="h-5 w-5 text-red-500 scale-125 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-all duration-300"
         />
       ) : (
-        <HeartIcon className="h-5 w-5" />
+        <HeartIcon className="h-5 w-5 transition-all duration-300" />
       )}
       <span className="sr-only">
         {board.favorite ? 'Remove from favorites' : 'Add to favorites'}

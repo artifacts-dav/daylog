@@ -33,13 +33,16 @@ export default function BoardFavSwitch({
           initial={false}
           animate={{ x: showFav ? '100%' : '0%' }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="absolute left-0 top-0 bottom-0 w-1/2 bg-background rounded-full shadow-sm border border-primary/5"
+          className={cn(
+            'absolute left-0 top-0 bottom-0 w-1/2 rounded-full shadow-sm border border-primary/5 transition-colors duration-300',
+            showFav ? 'bg-accent-yellow' : 'bg-background',
+          )}
         />
 
         <button
           onClick={() => handleToggle(false)}
           className={cn(
-            'relative z-10 flex-1 px-6 py-2 text-xs font-bold uppercase tracking-widest transition-colors duration-200',
+            'relative z-10 w-1/2 px-6 py-2 text-center text-xs font-bold uppercase tracking-widest transition-colors duration-200',
             !showFav
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground',
@@ -51,9 +54,9 @@ export default function BoardFavSwitch({
         <button
           onClick={() => handleToggle(true)}
           className={cn(
-            'relative z-10 flex-1 px-6 py-2 text-xs font-bold uppercase tracking-widest transition-colors duration-200',
+            'relative z-10 w-1/2 px-6 py-2 text-center text-xs font-bold uppercase tracking-widest transition-colors duration-200',
             showFav
-              ? 'text-primary'
+              ? 'text-[var(--color-text-accent-yellow)] drop-shadow-sm'
               : 'text-muted-foreground hover:text-foreground',
           )}
         >

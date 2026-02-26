@@ -65,7 +65,7 @@ export default function NoteModalDelete({ note }: NoteModalDeleteType) {
           </div>
         </div>
 
-        <DialogFooter className="mt-8 gap-3 sm:gap-0">
+        <DialogFooter className="mt-8">
           <Button
             type="button"
             variant="ghost"

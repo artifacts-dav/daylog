@@ -23,16 +23,16 @@ export default function NoteFavoriteButton({ note }: NoteFavoriteButtonType) {
     <Button
       variant="ghost"
       size="icon"
-      className="h-8 w-8"
+      className="h-8 w-8 hover:text-red-400 hover:bg-red-400/10 transition-all duration-300"
       onClick={handleFavoriteClick}
     >
       {note.favorite ? (
         <HeartSolidIcon
           data-testid="filled-heart"
-          className="h-4 w-4 text-accent-red"
+          className="h-4 w-4 text-red-500 scale-125 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-all duration-300"
         />
       ) : (
-        <HeartIcon className="h-4 w-4" />
+        <HeartIcon className="h-4 w-4 transition-all duration-300" />
       )}
       <span className="sr-only">
         {note.favorite ? 'Remove from favorites' : 'Add to favorites'}

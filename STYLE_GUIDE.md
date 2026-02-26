@@ -1,4 +1,4 @@
-# UI/UX Design System & Style Guide (Based on Dashboard Reference)
+# UI/UX Design System & Style Guide (Based on daylog old UI Reference)
 
 This document serves as the **Single Source of Truth** for all frontend development. The `frontend-design` skill must adhere strictly to these visual tokens extracted from the reference dashboard.
 
@@ -8,19 +8,21 @@ This document serves as the **Single Source of Truth** for all frontend developm
 
 The `frontend-design` skill must use these semantic tokens. When `class="dark"` is present on the body/html, switch to the Dark Variant.
 
-| Token              | Light Theme (Default) | Dark Theme Variant | Usage                                               |
-| :----------------- | :-------------------- | :----------------- | :-------------------------------------------------- |
-| `bg-main`          | #FFFFFF               | #0A0A0A            | Main application background                         |
-| `bg-sidebar`       | #F8F8F8               | #121212            | Sidebar and secondary panels                        |
-| `bg-surface`       | #FFFFFF               | #1C1C1E            | Cards, Modals, and Note containers                  |
-| `text-primary`     | #000000               | #E5E5E5            | Main titles and primary text (Reduced Stress White) |
-| `text-secondary`   | #6B7280               | #9CA3AF            | Subtitles and descriptions                          |
-| `text-muted`       | #9CA3AF               | #6B7280            | Breadcrumbs and metadata                            |
-| `border-default`   | #F3F4F6               | #2D2D2E            | Dividers and card outlines                          |
-| `accent-pink`      | #FBCFE8               | #321626            | Darker pink base for tags                           |
-| `text-accent-pink` | #DB2777               | #F472B6            | Lighter pink text for readability                   |
-| `accent-red`       | #FEE2E2               | #450A0A            | Soft red base for danger elements                   |
-| `text-accent-red`  | #DC2626               | #F87171            | High-contrast red for text/actions                  |
+| Token                | Light Theme (Default) | Dark Theme Variant | Usage                                               |
+| :------------------- | :-------------------- | :----------------- | :-------------------------------------------------- |
+| `bg-main`            | #FFFFFF               | #0A0A0A            | Main application background                         |
+| `bg-sidebar`         | #F8F8F8               | #121212            | Sidebar and secondary panels                        |
+| `bg-surface`         | #FFFFFF               | #1C1C1E            | Cards, Modals, and Note containers                  |
+| `text-primary`       | #000000               | #E5E5E5            | Main titles and primary text (Reduced Stress White) |
+| `text-secondary`     | #6B7280               | #9CA3AF            | Subtitles and descriptions                          |
+| `text-muted`         | #9CA3AF               | #6B7280            | Breadcrumbs and metadata                            |
+| `border-default`     | #F3F4F6               | #2D2D2E            | Dividers and card outlines                          |
+| `accent-pink`        | #FBCFE8               | #321626            | Darker pink base for tags                           |
+| `text-accent-pink`   | #DB2777               | #F472B6            | Lighter pink text for readability                   |
+| `accent-red`         | #FEE2E2               | #450A0A            | Soft red base for danger elements                   |
+| `text-accent-red`    | #DC2626               | #F87171            | High-contrast red for text/actions                  |
+| `accent-yellow`      | #FACC15               | #FACC15            | Bright yellow base highlighting                     |
+| `text-accent-yellow` | #422006               | #422006            | High-contrast dark text over yellow background      |
 
 ## 2. Dark Mode Specific Rules
 
@@ -98,4 +100,4 @@ To maintain the "clean and spacious" look from the dashboard, all forms must fol
 
 ---
 
-_Reference Image: Dashboard - Updated Feb 2026_
+_Reference Image: daylog old UI - Updated Feb 2026_

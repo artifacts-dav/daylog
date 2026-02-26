@@ -139,16 +139,33 @@ export default function Editor({ note }: NoteEditorType) {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+    <motion.div layout className="flex flex-col lg:flex-row items-start w-full">
       {/* Sidebar for Pictures */}
       <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
-            initial={{ width: 0, opacity: 0, x: -50 }}
-            animate={{ width: 340, opacity: 1, x: 0 }}
-            exit={{ width: 0, opacity: 0, x: -50 }}
+            initial={{
+              width: 0,
+              opacity: 0,
+              x: -50,
+              marginRight: 0,
+              marginBottom: 0,
+            }}
+            animate={{
+              width: 340,
+              opacity: 1,
+              x: 0,
+              marginRight: 24,
+            }}
+            exit={{
+              width: 0,
+              opacity: 0,
+              x: -50,
+              marginRight: 0,
+              marginBottom: 0,
+            }}
             transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-            className="flex-shrink-0 flex flex-col gap-6 sticky top-24 overflow-hidden"
+            className="flex-shrink-0 flex flex-col overflow-hidden max-lg:!mr-0 max-lg:mb-6 lg:mb-0"
           >
             <div className="w-[340px] rounded-[20px] bg-muted border border-border p-6 flex flex-col gap-6 shadow-sm">
               <div className="space-y-2">
@@ -228,10 +245,7 @@ export default function Editor({ note }: NoteEditorType) {
       </AnimatePresence>
 
       {/* Main Editor Area */}
-      <motion.div
-        layout
-        className="flex-1 w-full flex flex-col gap-4 min-w-0 my-1"
-      >
+      <motion.div layout className="flex-1 w-full flex flex-col gap-4 min-w-0">
         <div className="flex justify-between items-center w-full">
           <Button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -280,7 +294,7 @@ export default function Editor({ note }: NoteEditorType) {
           </div>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 

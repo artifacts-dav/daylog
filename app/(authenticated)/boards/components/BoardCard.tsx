@@ -65,7 +65,7 @@ export default async function BoardCard({ boardId }: BoardCardType) {
             <div className="text-[10px] font-bold uppercase tracking-widest text-white/50">
               <TimeDiff updatedAt={board?.updatedAt} />
             </div>
-            <div className="flex items-center gap-1 pointer-events-auto opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-1 group-hover:translate-y-0">
+            <div className="flex items-center gap-1 pointer-events-auto max-lg:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 max-lg:translate-y-0 lg:translate-y-1 lg:group-hover:translate-y-0">
               <BoardModalForm
                 board={board}
                 modalId={`edit-board-modal-${board.id}`}

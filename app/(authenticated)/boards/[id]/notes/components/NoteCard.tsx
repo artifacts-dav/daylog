@@ -71,7 +71,7 @@ export default function NoteCard({ note, settings }: NoteCardProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-x-2 group-hover:translate-x-0 transition-transform">
+          <div className="flex items-center gap-1 max-lg:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-300 max-lg:translate-x-0 lg:translate-x-2 lg:group-hover:translate-x-0">
             <NoteModalForm
               note={note}
               boardId={note.boardsId!}

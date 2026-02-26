@@ -171,8 +171,10 @@ export default function ImageSection({
 
       <div
         className={cn(
-          'relative rounded-xl overflow-hidden border border-border bg-muted transition-all duration-300',
-          isUnsplashMode ? 'h-[340px]' : 'aspect-[21/9]',
+          'relative flex flex-col justify-center rounded-xl overflow-hidden w-full border border-border bg-muted transition-all duration-300',
+          isUnsplashMode
+            ? 'h-[450px] sm:h-[340px]'
+            : 'min-h-[240px] sm:min-h-[auto] sm:aspect-[21/9]',
         )}
       >
         {isUnsplashMode ? (
@@ -288,7 +290,7 @@ export default function ImageSection({
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               priority={false}
             />
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-100 lg:opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center p-4">
               <div className="flex flex-col sm:flex-row gap-2 w-full max-w-xs">
                 <label className="cursor-pointer bg-background text-foreground h-10 px-4 rounded-xl flex items-center justify-center font-bold text-sm hover:bg-background/90 transition-colors shadow-lg shrink-0">
                   <PhotoIcon className="h-5 w-5 mr-2" />

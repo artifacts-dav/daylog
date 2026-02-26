@@ -42,7 +42,9 @@ describe('BoardFavSwitch', () => {
     render(<BoardFavSwitch showFavParam={true} />);
     const showAllBtn = screen.getByRole('button', { name: /recent/i });
     const favBtn = screen.getByRole('button', { name: /favorites/i });
-    expect(favBtn.className).toContain('text-primary');
+    expect(favBtn.className).toContain(
+      'text-[var(--color-text-accent-yellow)]',
+    );
     expect(showAllBtn.className).not.toContain('text-primary');
   });
 
@@ -53,13 +55,17 @@ describe('BoardFavSwitch', () => {
 
     // Click "Favorites"
     fireEvent.click(favBtn);
-    expect(favBtn.className).toContain('text-primary');
+    expect(favBtn.className).toContain(
+      'text-[var(--color-text-accent-yellow)]',
+    );
     expect(showAllBtn.className).not.toContain('text-primary');
 
     // Click "Recent"
     fireEvent.click(showAllBtn);
     expect(showAllBtn.className).toContain('text-primary');
-    expect(favBtn.className).not.toContain('text-primary');
+    expect(favBtn.className).not.toContain(
+      'text-[var(--color-text-accent-yellow)]',
+    );
   });
 
   it('updates URL search params and calls router methods on toggle', async () => {

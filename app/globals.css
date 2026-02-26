@@ -31,7 +31,8 @@
   --color-accent-pink: hsl(324, 85%, 89%);
   --color-text-accent-pink: hsl(333, 71%, 51%);
 
-
+  --color-accent-yellow: hsl(48, 96%, 53%);
+  --color-text-accent-yellow: hsl(41, 89%, 14%);
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(0 0% 3.9%);
 
@@ -72,7 +73,8 @@
   --color-accent-pink: hsl(326, 39%, 14%);
   --color-text-accent-pink: hsl(329, 86%, 70%);
 
-
+  --color-accent-yellow: hsl(48, 96%, 53%);
+  --color-text-accent-yellow: hsl(41, 89%, 14%);
   --color-popover: hsl(0 0% 3%);
   --color-popover-foreground: hsl(0 0% 90%);
 
@@ -123,6 +125,12 @@
 }
 @utility text-accent-pink {
   color: var(--color-text-accent-pink);
+}
+@utility text-accent-yellow {
+  color: var(--color-text-accent-yellow);
+}
+@utility bg-accent-yellow {
+  background-color: var(--color-accent-yellow);
 }
 
 @utility btn-danger-soft {
@@ -241,6 +249,24 @@ body .w-md-editor-area {
 
 body .wmde-markdown {
   background-color: transparent !important;
+}
+
+body .wmde-markdown ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin-block-start: 1em !important;
+  margin-block-end: 1em !important;
+}
+
+body .wmde-markdown ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin-block-start: 1em !important;
+  margin-block-end: 1em !important;
+}
+
+body .wmde-markdown li {
+  display: list-item !important;
 }
 
 @utility masonry-container {
