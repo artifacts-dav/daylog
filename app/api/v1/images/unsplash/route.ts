@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
   const keyword = req.nextUrl.searchParams.get('keyword') || 'nature';
   const page = parseInt(req.nextUrl.searchParams.get('page') || '1', 10);
-  const p_page = parseInt(req.nextUrl.searchParams.get('perpage') || '9', 10);
+  const p_page = parseInt(req.nextUrl.searchParams.get('per_page') || '12', 10);
   const url = `https://api.unsplash.com/search/photos?query=${keyword}&page=${page}&per_page=${p_page}&orientation=landscape`;
 
   const response = await fetch(url, {
