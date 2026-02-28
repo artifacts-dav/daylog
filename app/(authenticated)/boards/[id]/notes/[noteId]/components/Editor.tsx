@@ -34,7 +34,17 @@ export default function Editor({
 }: NoteEditorType) {
   const router = useRouter();
 
-  const [markdown, setMarkdown] = useState(note.content ?? '');
+  // Use a ref to track the initial note content so we only initialise from
+  // the server value once per note (not on every autosave revalidation).
+  const initialContentRef = useRef<{ id: number; content: string } | null>(
+    null,
+  );
+
+  const [markdown, setMarkdown] = useState(() => {
+    // On first render, also seed localStorage so the save-guard logic works.
+    return note.content ?? '';
+  });
+
   const [isSaving, setIsSaving] = useState(false);
   const [pictures, setPictures] = useState<Picture[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -62,11 +72,20 @@ export default function Editor({
     loadPictures();
   }, [note.id, loadPictures]);
 
-  // Sync state when note prop changes (e.g., after restore/refresh)
+  // Sync local state only when the user navigates to a *different* note
+  // (note.id changes) or on the very first mount. This prevents an autosave
+  // revalidation from overwriting what the user is currently typing.
   useEffect(() => {
-    setMarkdown(note.content ?? '');
-    localStorage.setItem(`note-${note.id}`, note.content ?? '');
-  }, [note.content, note.id]);
+    if (
+      initialContentRef.current === null ||
+      initialContentRef.current.id !== note.id
+    ) {
+      const content = note.content ?? '';
+      initialContentRef.current = { id: note.id, content };
+      setMarkdown(content);
+      localStorage.setItem(`note-${note.id}`, content);
+    }
+  }, [note.id, note.content]);
 
   /* Refactor: Use useRef for timer to avoid re-renders and dependency modification */
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
