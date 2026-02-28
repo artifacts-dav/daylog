@@ -31,7 +31,7 @@ export default async function Home({
   // Fetch data on the server
   const boardsCount = await getBoardsCount();
   const latestBoardImage = await getLatestBoardImage();
-  const allBoards = await getBoards('created_desc', 20);
+  const allBoards = await getBoards('created_desc', 7);
   const notes = await getNotes('created_desc', 20);
 
   const filteredBoards =
