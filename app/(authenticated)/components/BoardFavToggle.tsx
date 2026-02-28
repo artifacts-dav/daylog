@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useOptimistic, useTransition } from 'react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -12,12 +12,13 @@ export default function BoardFavSwitch({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const showFav = showFavParam;
+  const [showFav, setOptimisticShowFav] = useOptimistic(showFavParam);
 
   const handleToggle = (isFav: boolean) => {
     if (isFav === showFav) return;
 
     startTransition(() => {
+      setOptimisticShowFav(isFav);
       const params = new URLSearchParams(window.location.search);
       params.set('showFav', isFav ? 'true' : 'false');
       router.push('?' + params.toString(), { scroll: false });

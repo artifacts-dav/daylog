@@ -48,13 +48,17 @@ describe('BoardFavSwitch', () => {
     expect(showAllBtn.className).not.toContain('text-primary');
   });
 
-  it('toggles active button on click', () => {
-    render(<BoardFavSwitch />);
+  it('toggles active button on click', async () => {
+    const { rerender } = render(<BoardFavSwitch showFavParam={false} />);
     const showAllBtn = screen.getByRole('button', { name: /recent/i });
     const favBtn = screen.getByRole('button', { name: /favorites/i });
 
     // Click "Favorites"
     fireEvent.click(favBtn);
+
+    // Simulate Next.js navigating and re-rendering the server component with the updated URL param
+    rerender(<BoardFavSwitch showFavParam={true} />);
+
     expect(favBtn.className).toContain(
       'text-[var(--color-text-accent-yellow)]',
     );
@@ -62,6 +66,10 @@ describe('BoardFavSwitch', () => {
 
     // Click "Recent"
     fireEvent.click(showAllBtn);
+
+    // Simulate Next.js navigating and re-rendering the server component with the updated URL param
+    rerender(<BoardFavSwitch showFavParam={false} />);
+
     expect(showAllBtn.className).toContain('text-primary');
     expect(favBtn.className).not.toContain(
       'text-[var(--color-text-accent-yellow)]',
