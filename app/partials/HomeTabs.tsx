@@ -137,6 +137,7 @@ export default function HomeTabs({
 
         {notes && notes.length > 0 ? (
           <motion.div
+            key={showFav ? 'fav-notes' : 'recent-notes'}
             variants={containerVars}
             initial="hidden"
             animate="show"
