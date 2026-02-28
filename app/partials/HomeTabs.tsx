@@ -64,6 +64,7 @@ export default function HomeTabs({
         </div>
 
         <motion.div
+          key={showFav ? 'fav' : 'recent'}
           variants={containerVars}
           initial="hidden"
           animate="show"
