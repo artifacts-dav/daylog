@@ -103,7 +103,7 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
     pathname === '/favicon.ico' ||
     PUBLIC_FILE.test(pathname)
   ) {
-    return NextResponse.next();
+    return response;
   }
 
   // Check authentication for protected routes
@@ -120,6 +120,15 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
     if (sessionResponse.ok) {
       const sessionData = await sessionResponse.json();
       isLoggedIn = sessionData.user !== null;
+      if (isLoggedIn && sessionData.sessionExpiresAt && token) {
+        response.cookies.set('session', token, {
+          httpOnly: SECURITY_CONFIG.SESSION.COOKIE_HTTP_ONLY,
+          sameSite: SECURITY_CONFIG.SESSION.COOKIE_SAME_SITE,
+          secure: SECURITY_CONFIG.SESSION.COOKIE_SECURE,
+          expires: new Date(sessionData.sessionExpiresAt),
+          path: '/',
+        });
+      }
     }
     
     if (!isLoggedIn) {
@@ -139,7 +148,7 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
       }
     );
     if (!adminResponse.ok) {
-      return NextResponse.next();
+      return response;
     }
     const adminData = await adminResponse.json();
     const adminExists = adminData.initialized;
@@ -154,7 +163,7 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
       }
     );
     if (!adminResponse.ok) {
-      return NextResponse.next();
+      return response;
     }
     const adminData = await adminResponse.json();
     const adminExists = adminData.initialized;
@@ -168,7 +177,7 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
     const token = request.cookies.get('session')?.value;
 
     if (!token || !token.trim() || token === 'undefined') {
-      return NextResponse.next();
+      return response;
     }
 
     const sessionResponse = await fetch(
@@ -178,7 +187,7 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
       }
     );
     if (!sessionResponse.ok) {
-      return NextResponse.next();
+      return response;
     }
     const sessionData = await sessionResponse.json();
     const isLoggedIn = sessionData.user !== null;
@@ -195,16 +204,16 @@ if (origin.host !== hostHeader && !SECURITY_CONFIG.CORS.ALLOWED_ORIGINS.includes
       `${internalUrl}/api/v1/auth/register`
     );
     if (!allowResponse.ok) {
-      return NextResponse.next();
+      return response;
     }
     const allowData = await allowResponse.json();
     const allowRegistration = allowData.registration;
     if (!allowRegistration) {
       return NextResponse.redirect(new URL(`/login?callbackUrl=${encodeURIComponent(pathname)}`, request.url));
     }
-    return NextResponse.next();
+    return response;
   }
 
   // Session exists — allow the request
-  return NextResponse.next();
+  return response;
 }

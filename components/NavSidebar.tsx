@@ -1,6 +1,7 @@
 'use client';
 
 import NavBar from './NavBar';
+import NavSearch from './NavSearch';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
@@ -168,6 +169,7 @@ export default function NavSidebar({ user }: NavSidebarProps) {
         </Link>
 
         <div className="flex items-center gap-2">
+          <NavSearch />
           <NavThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

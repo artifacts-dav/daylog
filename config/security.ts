@@ -13,7 +13,7 @@ export const SECURITY_CONFIG = {
   // Session configuration
   SESSION: {
     EXPIRY_DAYS: 7,
-    RENEWAL_THRESHOLD_DAYS: 2,
+    RENEWAL_THRESHOLD_DAYS: 6.5,
     COOKIE_SECURE: process.env.NODE_ENV === 'production',
     COOKIE_HTTP_ONLY: true,
     COOKIE_SAME_SITE: 'strict' as const,

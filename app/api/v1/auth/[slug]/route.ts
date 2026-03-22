@@ -39,7 +39,7 @@ if (slug === 'admin') {
   }
 
 if (slug === 'session') {
-    const { user } = await getCurrentSession(req, token);
+    const { user, session } = await getCurrentSession(req, token);
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -56,7 +56,7 @@ if (slug === 'session') {
       terms: user.terms
     };
 
-    return new Response(JSON.stringify({ user: safeUser }), {
+    return new Response(JSON.stringify({ user: safeUser, sessionExpiresAt: session?.expiresAt?.toISOString() }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

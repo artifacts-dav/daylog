@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 export default function NavSearch() {
   const [open, setOpen] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [query, setQuery] = useState<string>('');
@@ -71,8 +72,9 @@ export default function NavSearch() {
   }, []);
 
   const handleKeyDown = (key: string) => {
+    if (!resultsRef.current) return;
     const anchors = Array.from(
-      document.querySelectorAll<HTMLAnchorElement>('#search-results a'),
+      resultsRef.current.querySelectorAll<HTMLAnchorElement>('a'),
     );
     const active = document.activeElement as HTMLAnchorElement | null;
     const currentIndex = anchors.findIndex((a) => a === active);
@@ -93,13 +95,12 @@ export default function NavSearch() {
   return (
     <>
       <button
-        id="nav-search-trigger"
         onClick={() => setOpen(true)}
         type="button"
-        className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground bg-muted border border-border hover:bg-accent rounded-xl transition-all duration-300"
+        className="flex items-center justify-center md:justify-start gap-2 p-2 md:px-4 md:py-2 text-sm text-muted-foreground hover:text-foreground md:bg-muted md:border border-transparent md:border-border hover:bg-accent rounded-full md:rounded-xl transition-all duration-300"
       >
-        <MagnifyingGlassIcon className="h-4 w-4" />
-        <span className="font-medium">Search anything...</span>
+        <MagnifyingGlassIcon className="h-5 w-5 md:h-4 md:w-4" />
+        <span className="hidden md:inline font-medium">Search anything...</span>
         <div className="hidden md:flex items-center gap-1 ml-4 text-[10px] font-bold uppercase tracking-widest opacity-60">
           <kbd className="min-w-[2rem] h-5 inline-flex items-center justify-center px-1 bg-background border border-border rounded-md tracking-normal leading-none">
             Alt
@@ -132,7 +133,7 @@ export default function NavSearch() {
             />
           </div>
           <div
-            id="search-results"
+            ref={resultsRef}
             className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-1"
             onKeyDown={(e) => handleKeyDown(e.key)}
           >
