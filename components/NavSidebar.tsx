@@ -13,6 +13,9 @@ import {
   UserIcon,
   ArrowRightStartOnRectangleIcon,
   ShieldCheckIcon,
+  MoonIcon,
+  SunIcon,
+  LanguageIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -21,6 +24,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -32,10 +37,10 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { signout } from '@/app/(authenticated)/lib/actions';
-import NavThemeToggle from './NavThemeToggle';
 import { cn } from '@/lib/utils';
-import LocaleSwitcher from './LocaleSwitcher';
-import { useTranslations } from 'next-intl';
+import { localeStorageKey, locales } from '@/i18n/config';
+import { useLocale, useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 
 import { User } from '@/prisma/generated/client';
 
@@ -45,7 +50,29 @@ interface NavSidebarProps {
 
 export default function NavSidebar({ user }: NavSidebarProps) {
   const t = useTranslations('Navigation');
+  const tLocale = useTranslations('LocaleSwitcher');
+  const tTheme = useTranslations('Theme');
+  const { theme, setTheme } = useTheme();
+  const locale = useLocale();
+  const [mounted, setMounted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isLocaleSubmitting, setIsLocaleSubmitting] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleLocaleChange = async (nextLocale: string) => {
+    if (nextLocale === locale) return;
+    setIsLocaleSubmitting(true);
+    localStorage.setItem(localeStorageKey, nextLocale);
+    await fetch('/api/v1/locale', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale: nextLocale }),
+    });
+    window.location.reload();
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
@@ -140,7 +167,7 @@ export default function NavSidebar({ user }: NavSidebarProps) {
             side="left"
             className="w-[80%] max-w-sm p-0 flex flex-col border-r-0"
           >
-            <SheetHeader className="h-20 px-6 border-b flex flex-row items-center justify-between flex-shrink-0">
+            <SheetHeader className="h-20 px-6 border-b flex flex-row items-center justify-between shrink-0">
               <SheetTitle className="flex items-center">
                 <Link href="/">
                   <Image
@@ -173,8 +200,6 @@ export default function NavSidebar({ user }: NavSidebarProps) {
 
         <div className="flex items-center gap-2">
           <NavSearch />
-          <LocaleSwitcher />
-          <NavThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center p-0.5 rounded-full hover:bg-muted transition-all outline-none">
@@ -219,6 +244,37 @@ export default function NavSidebar({ user }: NavSidebarProps) {
                   </Link>
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator className="my-1" />
+              {mounted && (
+                <DropdownMenuItem
+                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                  className="rounded-xl flex items-center py-2.5 cursor-pointer"
+                >
+                  {theme === 'light' ? (
+                    <MoonIcon className="mr-3 h-4 w-4 opacity-60" />
+                  ) : (
+                    <SunIcon className="mr-3 h-4 w-4 opacity-60" />
+                  )}
+                  <span className="font-medium">{tTheme('toggle')}</span>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator className="my-1" />
+              <DropdownMenuLabel className="px-2 py-1.5 text-xs text-muted-foreground">
+                {tLocale('title')}
+              </DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={locale} onValueChange={handleLocaleChange}>
+                {locales.map((optionLocale) => (
+                  <DropdownMenuRadioItem
+                    key={optionLocale}
+                    value={optionLocale}
+                    disabled={isLocaleSubmitting}
+                    className="rounded-xl cursor-pointer"
+                  >
+                    <LanguageIcon className="mr-3 h-4 w-4 opacity-60" />
+                    {tLocale(`options.${optionLocale}`)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
               <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
                 onClick={() => signout()}
