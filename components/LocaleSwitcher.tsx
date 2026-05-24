@@ -1,6 +1,7 @@
 'use client';
 
-import { localeStorageKey, locales } from '@/i18n/config';
+import { locales } from '@/i18n/config';
+import { changeLocale } from '@/lib/locale';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,35 +13,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LanguageIcon } from '@heroicons/react/24/outline';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export default function LocaleSwitcher() {
   const locale = useLocale();
   const t = useTranslations('LocaleSwitcher');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem(localeStorageKey, locale);
-  }, [locale]);
-
   const handleChange = async (nextLocale: string) => {
-
-    if (nextLocale === locale) {
-      return;
-    }
-
     setIsSubmitting(true);
-    localStorage.setItem(localeStorageKey, nextLocale);
-
-    await fetch('/api/v1/locale', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ locale: nextLocale }),
-    });
-
-    window.location.reload();
+    await changeLocale(nextLocale, locale);
   };
 
   return (

@@ -5,6 +5,7 @@ import NavThemeToggle from './NavThemeToggle';
 import NavSearch from './NavSearch';
 import LocaleSwitcher from './LocaleSwitcher';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { getUserInitials } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,12 +35,7 @@ export default function NavHeader({ user }: NavHeaderProps) {
     return null;
   }
 
-  const initials = user?.name
-    ?.split(' ')
-    .map((n: string) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = getUserInitials(user?.name);
 
   return (
     <header className="hidden md:flex flex-shrink-0 items-center justify-between h-20 px-6 border-b border-border bg-background">

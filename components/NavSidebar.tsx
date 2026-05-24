@@ -37,8 +37,9 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { signout } from '@/app/(authenticated)/lib/actions';
-import { cn } from '@/lib/utils';
-import { localeStorageKey, locales } from '@/i18n/config';
+import { cn, getUserInitials } from '@/lib/utils';
+import { changeLocale } from '@/lib/locale';
+import { locales } from '@/i18n/config';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 
@@ -63,15 +64,8 @@ export default function NavSidebar({ user }: NavSidebarProps) {
   }, []);
 
   const handleLocaleChange = async (nextLocale: string) => {
-    if (nextLocale === locale) return;
     setIsLocaleSubmitting(true);
-    localStorage.setItem(localeStorageKey, nextLocale);
-    await fetch('/api/v1/locale', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locale: nextLocale }),
-    });
-    window.location.reload();
+    await changeLocale(nextLocale, locale);
   };
 
   useEffect(() => {
@@ -87,12 +81,7 @@ export default function NavSidebar({ user }: NavSidebarProps) {
     localStorage.setItem('sidebar-collapsed', String(newState));
   };
 
-  const initials = user?.name
-    ?.split(' ')
-    .map((n: string) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = getUserInitials(user?.name);
 
   if (!user) return null;
 
