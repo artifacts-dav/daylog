@@ -1,11 +1,13 @@
 'use server';
 
 import { getCurrentSession } from '@/app/login/lib/actions';
+import { getCurrentSessionKey } from '@/app/(authenticated)/lib/encryptionKey';
 import { prisma } from '@/prisma/client';
 import { Note, Picture, Prisma } from '@/prisma/generated/client';
 import { saveAndGetImageFile } from '@/utils/file';
 import { removeFile } from '@/utils/storage';
 import { isBase64, isUrl } from '@/utils/text';
+import { encryptNoteFields, decryptNoteFields, encryptField, decryptField } from '@/utils/encryption';
 
 import fs from 'fs';
 import { NoteWithBoards } from './types';
@@ -22,9 +24,11 @@ export async function createNote(
     return null;
   }
 
+  const key = user.encryptionEnabled ? await getCurrentSessionKey() : null;
+
   const note: Prisma.NoteCreateInput = {
-    title: data.title,
-    content: data.content,
+    title: key ? encryptField(data.title as string, key) : data.title,
+    content: data.content && key ? encryptField(data.content as string, key) : data.content,
     boards: { connect: { id: boardId, userId: user?.id } },
   };
 
@@ -39,36 +43,45 @@ export async function updateNote(note: Note): Promise<Note | null> {
     return null;
   }
 
+  const key = user.encryptionEnabled ? await getCurrentSessionKey() : null;
+
   // Get the current note content before updating
   const currentNote = await prisma.note.findUnique({
     where: { id: note.id },
   });
 
+  // Decrypt existing content for diff comparison
+  const currentContentPlain = currentNote?.content
+    ? (key ? decryptField(currentNote.content, key) : currentNote.content)
+    : '';
+  const newContentPlain = note.content ?? '';
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id, boards, boardsId, ...updateData } = note as NoteWithBoards;
+  const encryptedData = key ? encryptNoteFields(updateData, key) : updateData;
+
   const updatedNote = await prisma.note.update({
     where: { id, boards: { userId: user?.id } },
-    data: {
-      ...updateData,
-    },
+    data: { ...encryptedData },
   });
 
   // Track the change if content was modified
-  if (currentNote && currentNote.content !== note.content) {
+  if (currentNote && currentContentPlain !== newContentPlain) {
     const { computeDiff, areTextsIdentical } = await import('@/utils/diff');
-    const oldContent = currentNote.content ?? '';
-    const newContent = note.content ?? '';
 
     // Only save if there's an actual change
-    if (!areTextsIdentical(oldContent, newContent)) {
-      const diffPatch = computeDiff(oldContent, newContent);
+    if (!areTextsIdentical(currentContentPlain, newContentPlain)) {
+      const diffPatch = computeDiff(currentContentPlain, newContentPlain);
+      const previousContentToStore = key
+        ? encryptField(currentContentPlain, key)
+        : currentContentPlain;
 
       await prisma.noteChange.create({
         data: {
           noteId: note.id,
           userId: user.id,
           diffPatch,
-          previousContent: oldContent,
+          previousContent: previousContentToStore,
         },
       });
     }
@@ -126,7 +139,10 @@ export async function getNotes(
     orderBy: [sorting],
   });
 
-  return notes;
+  if (!user.encryptionEnabled) return notes;
+  const key = await getCurrentSessionKey();
+  if (!key) return notes;
+  return notes.map((n) => decryptNoteFields(n, key));
 }
 
 export async function setUserNotesSort(sort: string): Promise<void> {
@@ -147,7 +163,10 @@ export async function getNote(noteId: number): Promise<Note | null> {
   const note = await prisma.note.findFirst({
     where: { id: noteId, boards: { userId: user?.id } },
   });
-  return note;
+  if (!note || !user?.encryptionEnabled) return note;
+  const key = await getCurrentSessionKey();
+  if (!key) return note;
+  return decryptNoteFields(note, key);
 }
 
 export async function saveImage({
@@ -459,34 +478,42 @@ export async function restoreToVersion(
       return { success: false, error: 'Change not found' };
     }
 
-    // The previousContent field contains the content before this change was applied
-    // So restoring to this version means using the previousContent
-    const targetContent = change.previousContent ?? '';
-    const currentContent = note.content ?? '';
+    const key = user.encryptionEnabled ? await getCurrentSessionKey() : null;
+
+    // Decrypt stored content for comparison and diff computation
+    const targetContentPlain = key && change.previousContent
+      ? decryptField(change.previousContent, key)
+      : (change.previousContent ?? '');
+    const currentContentPlain = key && note.content
+      ? decryptField(note.content, key)
+      : (note.content ?? '');
 
     // If already identical, nothing to do
-    if (targetContent === currentContent) {
+    if (targetContentPlain === currentContentPlain) {
       return { success: true };
     }
 
     // Capture the current state as a history entry before we overwrite it
-    // This allows the user to restore back to this state if they want to undo the restore
     const { computeDiff } = await import('@/utils/diff');
-    const diffPatch = computeDiff(targetContent, currentContent);
+    const diffPatch = computeDiff(targetContentPlain, currentContentPlain);
+    const previousContentToStore = key
+      ? encryptField(currentContentPlain, key)
+      : currentContentPlain;
 
     await prisma.noteChange.create({
       data: {
         noteId: noteId,
         userId: user.id,
         diffPatch,
-        previousContent: currentContent,
+        previousContent: previousContentToStore,
       },
     });
 
-    // Update the note with the restored content
+    // Update the note with the restored content (encrypted if needed)
+    const contentToStore = key ? encryptField(targetContentPlain, key) : targetContentPlain;
     await prisma.note.update({
       where: { id: noteId },
-      data: { content: targetContent },
+      data: { content: contentToStore },
     });
 
     revalidatePath(`/boards/${note.boardsId}/notes/${noteId}`);

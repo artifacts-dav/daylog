@@ -12,6 +12,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
+import { AlertOctagon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 type UpdatePassType = {
@@ -20,6 +21,7 @@ type UpdatePassType = {
     id: number;
     name: string | null;
     email: string | null;
+    encryptionEnabled: boolean;
   };
 };
 
@@ -35,6 +37,12 @@ export default function UpdatePass({ userId, profile }: UpdatePassType) {
           <p className="text-sm text-muted-foreground">
             {t('description')}
           </p>
+          {profile.encryptionEnabled && (
+            <div className="flex items-start gap-2 p-3 rounded-[10px] bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+              <AlertOctagon className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <p className="text-xs font-medium leading-relaxed">{t('encryptionWarning')}</p>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
           <input type="hidden" name="id" value={profile.id} />
@@ -99,7 +107,9 @@ export default function UpdatePass({ userId, profile }: UpdatePassType) {
           )}
           <Button type="submit" disabled={pending}>
             <LockClosedIcon className="h-4 w-4 mr-2" />
-            {pending ? t('updating') : t('changePassword')}
+            {pending
+              ? (profile.encryptionEnabled ? t('updatingWithEncryption') : t('updating'))
+              : t('changePassword')}
           </Button>
         </CardContent>
       </Card>

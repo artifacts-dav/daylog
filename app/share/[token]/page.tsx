@@ -5,6 +5,26 @@ import SharedNoteView from './components/SharedNoteView';
 import SharedBoardView from './components/SharedBoardView';
 import { ClockIcon } from '@heroicons/react/24/outline';
 import { cookies } from 'next/headers';
+import { isEncrypted } from '@/utils/encryption';
+
+const ENCRYPTED_PLACEHOLDER = '[Encrypted content — not available in shared view]';
+
+function maskEncryptedFields<T extends Record<string, unknown>>(obj: T): T {
+  const result: Record<string, unknown> = { ...obj };
+  for (const key of Object.keys(result)) {
+    const val = result[key];
+    if (typeof val === 'string' && isEncrypted(val)) {
+      result[key] = ENCRYPTED_PLACEHOLDER;
+    } else if (Array.isArray(val)) {
+      result[key] = val.map((item) =>
+        typeof item === 'object' && item !== null ? maskEncryptedFields(item as Record<string, unknown>) : item,
+      );
+    } else if (typeof val === 'object' && val !== null) {
+      result[key] = maskEncryptedFields(val as Record<string, unknown>);
+    }
+  }
+  return result as T;
+}
 
 export default async function PublicSharePage({ 
   params, 
@@ -79,6 +99,9 @@ export default async function PublicSharePage({
   }
 
   if (!entity) return notFound();
+
+  // Replace encrypted field values with a placeholder (no session key available in share view)
+  entity = maskEncryptedFields(entity as Record<string, unknown>);
 
   // Handle one-time view with atomic check
   if (share.oneTime) {

@@ -99,6 +99,7 @@ describe('validateSessionToken', () => {
       id: 'mocked-session-id',
       userId: 1,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      encryptedKey: null,
       user: {
         id: 1,
         email: 'test@example.com',
@@ -113,6 +114,9 @@ describe('validateSessionToken', () => {
         lockUntil: null,
         mfaCode: null,
         mfaCodeSentAt: null,
+        encryptionEnabled: false,
+        encryptionSalt: null,
+        encryptedDataLocked: false,
       },
     };
     prismaMock.session.findUnique.mockResolvedValue(mockSession);
@@ -124,6 +128,7 @@ describe('validateSessionToken', () => {
         id: 'mocked-session-id',
         userId: 1,
         expiresAt: expect.any(Date),
+        encryptedKey: null,
       },
       user: {
         id: 1,
@@ -139,6 +144,9 @@ describe('validateSessionToken', () => {
         lockUntil: null,
         mfaCode: null,
         mfaCodeSentAt: null,
+        encryptionEnabled: false,
+        encryptionSalt: null,
+        encryptedDataLocked: false,
       },
     });
   });
@@ -156,6 +164,7 @@ describe('validateSessionToken', () => {
       id: 'mocked-session-id',
       userId: 1,
       expiresAt: new Date(Date.now() - 100 * 60 * 60 * 24 * 30),
+      encryptedKey: null,
     });
 
     const result = await validateSessionToken('mocked-token');
@@ -339,6 +348,7 @@ describe('getCurrentSession', () => {
       id: 'mocked-session-id',
       userId: 1,
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      encryptedKey: null,
       user: {
         id: 1,
         email: 'test@example.com',
@@ -353,6 +363,9 @@ describe('getCurrentSession', () => {
         lockUntil: null,
         mfaCode: null,
         mfaCodeSentAt: null,
+        encryptionEnabled: false,
+        encryptionSalt: null,
+        encryptedDataLocked: false,
       },
     };
     prismaMock.session.findUnique.mockResolvedValue(mockSession);
@@ -364,6 +377,7 @@ describe('getCurrentSession', () => {
         id: 'mocked-session-id',
         userId: 1,
         expiresAt: expect.any(Date),
+        encryptedKey: null,
       },
       user: {
         id: 1,
@@ -379,6 +393,9 @@ describe('getCurrentSession', () => {
         lockUntil: null,
         mfaCode: null,
         mfaCodeSentAt: null,
+        encryptionEnabled: false,
+        encryptionSalt: null,
+        encryptedDataLocked: false,
       },
     });
   });

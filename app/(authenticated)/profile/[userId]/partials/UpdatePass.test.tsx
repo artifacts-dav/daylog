@@ -31,6 +31,7 @@ describe('UpdatePass Component', () => {
     id: 1,
     name: 'John Doe',
     email: 'john.doe@example.com',
+    encryptionEnabled: false,
   };
 
   beforeEach(() => {

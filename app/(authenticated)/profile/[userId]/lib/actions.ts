@@ -7,6 +7,18 @@ import {
 import { deleteSessionTokenCookie } from '@/app/login/lib/cookies';
 import { prisma } from '@/prisma/client';
 import { hashPassword, verifyPassword } from '@/utils/crypto';
+import {
+  deriveEncryptionKey,
+  encryptBoardFields,
+  decryptBoardFields,
+  encryptNoteFields,
+  decryptNoteFields,
+  generateEncryptionSalt,
+  wrapKeyWithMaster,
+  reEncryptAll,
+  isEncrypted,
+} from '@/utils/encryption';
+import { encodeHex } from '@/utils/crypto';
 import { generateTOTP, validateTOTP } from '@/utils/totp';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
@@ -25,6 +37,10 @@ import {
   ProfileFormState,
   UpdateMFAFormSchema,
   MFAFormState as UpdateMFAFormState,
+  EncryptionFormSchema,
+  EncryptionFormState,
+  RecoverEncryptionFormSchema,
+  RecoverEncryptionFormState,
 } from './definitions';
 import { createAndVerifyTransporter } from '@/utils/email';
 import { User } from '@/prisma/generated/client';
@@ -197,9 +213,35 @@ export async function updatePassword(
     });
 
     if (user?.id !== data.id && isAdmin) {
+      // Admin changed another user's password — if that user had encryption enabled,
+      // we can't re-encrypt (old password unknown), so mark data as locked.
+      if (record.encryptionEnabled) {
+        await prisma.user.update({
+          where: { id: data.id },
+          data: { encryptedDataLocked: true },
+        });
+      }
       await prisma.session.deleteMany({
         where: { userId: data.id },
       });
+    } else if (record.encryptionEnabled && record.encryptionSalt) {
+      // Self password change — re-encrypt all data with new key
+      const oldPassword = result.data.current ?? '';
+      const newPassword = result.data.password;
+      const oldKey = await deriveEncryptionKey(oldPassword, record.encryptionSalt);
+      const newKey = await deriveEncryptionKey(newPassword, record.encryptionSalt);
+      await reEncryptAll(data.id, oldKey, newKey);
+      const cookieStore = await cookies();
+      const token = cookieStore.get('session')?.value;
+      if (token) {
+        const sessionId = encodeHex(token);
+        const wrapped = wrapKeyWithMaster(newKey);
+        await prisma.session.update({ where: { id: sessionId }, data: { encryptedKey: wrapped } });
+        await prisma.session.updateMany({
+          where: { userId: data.id, id: { not: sessionId } },
+          data: { encryptedKey: null },
+        });
+      }
     }
 
     return {
@@ -262,7 +304,22 @@ export async function backupData(state: BackupFormState, formData: FormData) {
       };
     }
 
-    const data = JSON.stringify(user);
+    // Decrypt content fields before exporting so the backup is human-readable
+    const { user: sessionUser } = await getCurrentSession();
+    const key = sessionUser?.encryptionEnabled ? await (async () => {
+      const { getCurrentSessionKey } = await import('@/app/(authenticated)/lib/encryptionKey');
+      return getCurrentSessionKey();
+    })() : null;
+
+    const exportData = key ? {
+      ...user,
+      boards: user.boards.map((b) => ({
+        ...decryptBoardFields(b, key),
+        notes: b.notes.map((n) => decryptNoteFields(n, key)),
+      })),
+    } : user;
+
+    const data = JSON.stringify(exportData);
 
     return {
       success: true,
@@ -542,6 +599,248 @@ export async function sendOTP() {
     return {
       success: false,
     };
+  }
+}
+
+export async function enableEncryption(
+  state: EncryptionFormState,
+  formData: FormData,
+): Promise<EncryptionFormState> {
+  const data = { password: formData.get('password') };
+  const result = EncryptionFormSchema.safeParse(data);
+  if (!result.success) {
+    return { errors: result.error.flatten().fieldErrors, success: false };
+  }
+
+  const { user } = await getCurrentSession();
+  if (!user) return { message: 'Unauthorized', success: false };
+
+  try {
+    const record = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!record) return { message: 'User not found.', success: false };
+
+    const isValid = await verifyPassword(result.data.password, record.password);
+    if (!isValid) return { message: 'Current password is incorrect.', success: false };
+
+    const salt = record.encryptionSalt ?? generateEncryptionSalt();
+    const key = await deriveEncryptionKey(result.data.password, salt);
+
+    const boards = await prisma.board.findMany({
+      where: { userId: user.id },
+      select: { id: true, title: true, description: true },
+    });
+    const notes = await prisma.note.findMany({
+      where: { boards: { userId: user.id } },
+      select: { id: true, title: true, content: true },
+    });
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { encryptionEnabled: true, encryptionSalt: salt },
+      }),
+      ...boards.map((b) => {
+        const enc = encryptBoardFields(b, key);
+        return prisma.board.update({
+          where: { id: b.id },
+          data: { title: enc.title, description: enc.description },
+        });
+      }),
+      ...notes.map((n) => {
+        const enc = encryptNoteFields(n, key);
+        return prisma.note.update({
+          where: { id: n.id },
+          data: { title: enc.title, content: enc.content },
+        });
+      }),
+    ]);
+
+    // Store key in current session and clear all other sessions' keys
+    const cookieStore = await cookies();
+    const token = cookieStore.get('session')?.value;
+    if (token) {
+      const sessionId = encodeHex(token);
+      const wrapped = wrapKeyWithMaster(key);
+      await prisma.session.update({ where: { id: sessionId }, data: { encryptedKey: wrapped } });
+      await prisma.session.updateMany({
+        where: { userId: user.id, id: { not: sessionId } },
+        data: { encryptedKey: null },
+      });
+    }
+
+    revalidatePath(`/profile/${user.id}`);
+    return { success: true, message: 'Encryption enabled successfully.' };
+  } catch (e) {
+    console.error(e);
+    return { message: 'An error occurred while enabling encryption.', success: false };
+  }
+}
+
+export async function disableEncryption(
+  state: EncryptionFormState,
+  formData: FormData,
+): Promise<EncryptionFormState> {
+  const data = { password: formData.get('password') };
+  const result = EncryptionFormSchema.safeParse(data);
+  if (!result.success) {
+    return { errors: result.error.flatten().fieldErrors, success: false };
+  }
+
+  const { user } = await getCurrentSession();
+  if (!user) return { message: 'Unauthorized', success: false };
+
+  try {
+    const record = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!record) return { message: 'User not found.', success: false };
+
+    const isValid = await verifyPassword(result.data.password, record.password);
+    if (!isValid) return { message: 'Current password is incorrect.', success: false };
+
+    if (!record.encryptionSalt) return { message: 'No encryption key found.', success: false };
+
+    const key = await deriveEncryptionKey(result.data.password, record.encryptionSalt);
+
+    const boards = await prisma.board.findMany({
+      where: { userId: user.id },
+      select: { id: true, title: true, description: true },
+    });
+    const notes = await prisma.note.findMany({
+      where: { boards: { userId: user.id } },
+      select: { id: true, title: true, content: true },
+    });
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { encryptionEnabled: false },
+      }),
+      prisma.session.updateMany({ where: { userId: user.id }, data: { encryptedKey: null } }),
+      ...boards.map((b) => {
+        const dec = decryptBoardFields(b, key);
+        return prisma.board.update({
+          where: { id: b.id },
+          data: { title: dec.title, description: dec.description },
+        });
+      }),
+      ...notes.map((n) => {
+        const dec = decryptNoteFields(n, key);
+        return prisma.note.update({
+          where: { id: n.id },
+          data: { title: dec.title, content: dec.content },
+        });
+      }),
+    ]);
+
+    revalidatePath(`/profile/${user.id}`);
+    return { success: true, message: 'Encryption disabled successfully.' };
+  } catch (e) {
+    console.error(e);
+    return { message: 'An error occurred while disabling encryption.', success: false };
+  }
+}
+
+export async function recoverEncryptedData(
+  state: RecoverEncryptionFormState,
+  formData: FormData,
+): Promise<RecoverEncryptionFormState> {
+  const data = {
+    oldPassword: formData.get('oldPassword'),
+    newPassword: formData.get('newPassword'),
+  };
+  const result = RecoverEncryptionFormSchema.safeParse(data);
+  if (!result.success) {
+    return { errors: result.error.flatten().fieldErrors, success: false };
+  }
+
+  const { user } = await getCurrentSession();
+  if (!user) return { message: 'Unauthorized', success: false };
+
+  try {
+    const record = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!record || !record.encryptionSalt) {
+      return { message: 'No encryption key found.', success: false };
+    }
+
+    const oldKey = await deriveEncryptionKey(result.data.oldPassword, record.encryptionSalt);
+
+    // Probe decryption with old key
+    const probeBoard = await prisma.board.findFirst({ where: { userId: user.id } });
+    const probeNote = await prisma.note.findFirst({ where: { boards: { userId: user.id } } });
+    try {
+      if (probeBoard) decryptBoardFields(probeBoard, oldKey);
+      if (probeNote) decryptNoteFields(probeNote, oldKey);
+    } catch {
+      return { message: 'Old password is incorrect or data cannot be decrypted.', success: false };
+    }
+
+    const newKey = await deriveEncryptionKey(result.data.newPassword, record.encryptionSalt);
+    await reEncryptAll(user.id, oldKey, newKey);
+
+    const cookieStore = await cookies();
+    const token = cookieStore.get('session')?.value;
+    if (token) {
+      const sessionId = encodeHex(token);
+      const wrapped = wrapKeyWithMaster(newKey);
+      await prisma.session.update({ where: { id: sessionId }, data: { encryptedKey: wrapped } });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { encryptionEnabled: true, encryptedDataLocked: false },
+    });
+
+    revalidatePath(`/profile/${user.id}`);
+    return { success: true, message: 'Data recovered and re-encrypted successfully.' };
+  } catch (e) {
+    console.error(e);
+    return { message: 'An error occurred during recovery.', success: false };
+  }
+}
+
+export async function wipeEncryptedData(
+  state: EncryptionFormState,
+  formData: FormData,
+): Promise<EncryptionFormState> {
+  const { user } = await getCurrentSession();
+  if (!user) return { message: 'Unauthorized', success: false };
+
+  try {
+    const boards = await prisma.board.findMany({
+      where: { userId: user.id },
+      select: { id: true, title: true, description: true },
+    });
+    const notes = await prisma.note.findMany({
+      where: { boards: { userId: user.id } },
+      select: { id: true, title: true, content: true },
+    });
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { encryptionEnabled: false, encryptedDataLocked: false },
+      }),
+      prisma.session.updateMany({ where: { userId: user.id }, data: { encryptedKey: null } }),
+      ...boards.map((b) => prisma.board.update({
+        where: { id: b.id },
+        data: {
+          title: isEncrypted(b.title) ? '[content removed]' : b.title,
+          description: isEncrypted(b.description) ? null : b.description,
+        },
+      })),
+      ...notes.map((n) => prisma.note.update({
+        where: { id: n.id },
+        data: {
+          title: isEncrypted(n.title) ? '[content removed]' : n.title,
+          content: isEncrypted(n.content) ? null : n.content,
+        },
+      })),
+    ]);
+
+    revalidatePath(`/profile/${user.id}`);
+    return { success: true, message: 'Encrypted data wiped successfully.' };
+  } catch (e) {
+    console.error(e);
+    return { message: 'An error occurred while wiping data.', success: false };
   }
 }
 

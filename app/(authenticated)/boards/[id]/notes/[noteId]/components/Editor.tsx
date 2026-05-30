@@ -189,6 +189,7 @@ export default function Editor({
               isOpen={showHistory}
               onClose={() => setShowHistory(false)}
               onRestoreSuccess={() => {
+                initialContentRef.current = null;
                 router.refresh();
               }}
               refreshKey={sidebarRefreshKey}

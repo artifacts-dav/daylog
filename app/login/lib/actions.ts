@@ -6,6 +6,10 @@ import { getSettings } from '@/app/(authenticated)/admin/lib/actions';
 import { defaultLocale, isValidLocale, localeCookieName } from '@/i18n/config';
 import { prisma } from '@/prisma/client';
 import { encodeBase32, encodeHex, verifyPassword } from '@/utils/crypto';
+import {
+  deriveEncryptionKey,
+  wrapKeyWithMaster,
+} from '@/utils/encryption';
 import { randomDelay } from '@/utils/delay';
 import { validateTOTP } from '@/utils/totp';
 import { revalidatePath } from 'next/cache';
@@ -127,6 +131,7 @@ async function createSession(token: string, userId: number): Promise<Session> {
     expiresAt: new Date(
       Date.now() + SECURITY_CONFIG.SESSION.EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     ),
+    encryptedKey: null,
   };
   await prisma.session.create({
     data: session,
@@ -262,8 +267,27 @@ export async function signin(
     if (record.mfa && settings?.mfa) {
       goMFA = record.mfa;
       userId = record.id;
+      // Derive encryption key now while we still have the plaintext password,
+      // store it in a short-lived cookie for the MFA step to pick up.
+      if (record.encryptionEnabled && record.encryptionSalt) {
+        try {
+          const key = await deriveEncryptionKey(result.data.password, record.encryptionSalt);
+          const wrapped = wrapKeyWithMaster(key);
+          const cookieStore = await cookies();
+          cookieStore.set(`enc_pending_key_${record.id}`, wrapped, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: 300, // 5 minutes
+          });
+        } catch {
+          // Non-fatal — user will just need to re-login if decryption fails
+        }
+      }
     } else {
-      await generateUserSession(record);
+      const wrappedKey = await deriveAndWrapKey(record, result.data.password);
+      await generateUserSession(record, wrappedKey);
     }
   } catch (e) {
     console.error(e);
@@ -370,7 +394,19 @@ export async function validateMFA(
 
     // Reset failed attempts on successful OTP validation
     await resetFailedAttempts(record.id);
-    await generateUserSession(record);
+    // Pick up the encryption key that was stashed during the password step
+    let mfaPendingKey: string | undefined;
+    try {
+      const cookieStore = await cookies();
+      const pendingCookie = cookieStore.get(`enc_pending_key_${record.id}`);
+      if (pendingCookie) {
+        mfaPendingKey = pendingCookie.value;
+        cookieStore.delete(`enc_pending_key_${record.id}`);
+      }
+    } catch {
+      // Non-fatal
+    }
+    await generateUserSession(record, mfaPendingKey);
   } catch (e) {
     console.error(e);
     return {
@@ -386,18 +422,44 @@ export async function validateMFA(
   redirect(callbackUrl);
 }
 
-async function generateUserSession(record: {
-  name: string | null;
-  id: number;
-  email: string;
-  password: string;
-  secret: string | null;
-  mfa: boolean;
-  role: string;
-  terms: string;
-}) {
+async function deriveAndWrapKey(
+  record: { encryptionEnabled: boolean; encryptionSalt: string | null },
+  plainPassword: string,
+): Promise<string | undefined> {
+  if (!record.encryptionEnabled || !record.encryptionSalt || record.encryptionSalt === '') {
+    return undefined;
+  }
+  try {
+    const key = await deriveEncryptionKey(plainPassword, record.encryptionSalt);
+    return wrapKeyWithMaster(key);
+  } catch {
+    return undefined;
+  }
+}
+
+async function generateUserSession(
+  record: {
+    name: string | null;
+    id: number;
+    email: string;
+    password: string;
+    secret: string | null;
+    mfa: boolean;
+    role: string;
+    terms: string;
+    encryptionEnabled: boolean;
+    encryptionSalt: string | null;
+  },
+  wrappedKey?: string,
+) {
   const token = await generateSessionToken();
-  await createSession(token, record!.id);
+  const session = await createSession(token, record!.id);
+  if (wrappedKey) {
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { encryptedKey: wrappedKey },
+    });
+  }
   await setSessionTokenCookie(
     token,
     new Date(

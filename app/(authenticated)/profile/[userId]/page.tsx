@@ -7,6 +7,7 @@ import { getCurrentSession } from '@/app/login/lib/actions';
 import { getProfile } from './lib/actions';
 import Backup from './partials/Backup';
 import DangerZone from './partials/DangerZone';
+import EncryptData from './partials/EncryptData';
 import MultiFAAuth from './partials/MultiFAAuth';
 import ProfileInfo from './partials/ProfileInfo';
 import UpdatePass from './partials/UpdatePass';
@@ -81,6 +82,7 @@ export default async function Profile({
         )}
         <ProfileInfo profile={profile} />
         <UpdatePass userId={user.id} profile={profile} />
+        {user.id === profile.id && <EncryptData profile={profile} />}
         {settings?.mfa && <MultiFAAuth profile={profile}></MultiFAAuth>}
         {user.id === profile.id && <Backup profile={profile} />}
         <DangerZone profile={profile}></DangerZone>

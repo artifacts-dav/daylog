@@ -15,31 +15,35 @@ datasource db {
 }
 
 model User {
-  id             Int             @id @default(autoincrement())
-  email          String          @unique
-  password       String
-  secret         String?
-  mfa            Boolean         @default(false)
-  name           String?
-  role           String          @default("user") // or admin (Don't Use enum in order to be sqlite compatible).
-  terms          String          @default("pending")
-  boards         Board[]
-  sessions       Session[]
-  noteChanges    NoteChange[]
-  changeComments ChangeComment[]
-  sortNotesBy    String?         @default("created_desc") // created_desc, created_asc, title_asc, title_desc
-  sortBoardsBy   String?         @default("created_desc")
-  failedAttempts Int?            @default(0)
-  lockUntil      DateTime?
-  mfaCode        String?
-  mfaCodeSentAt  DateTime?
+  id                  Int             @id @default(autoincrement())
+  email               String          @unique
+  password            String
+  secret              String?
+  mfa                 Boolean         @default(false)
+  name                String?
+  role                String          @default("user") // or admin (Don't Use enum in order to be sqlite compatible).
+  terms               String          @default("pending")
+  boards              Board[]
+  sessions            Session[]
+  noteChanges         NoteChange[]
+  changeComments      ChangeComment[]
+  sortNotesBy         String?         @default("created_desc") // created_desc, created_asc, title_asc, title_desc
+  sortBoardsBy        String?         @default("created_desc")
+  failedAttempts      Int?            @default(0)
+  lockUntil           DateTime?
+  mfaCode             String?
+  mfaCodeSentAt       DateTime?
+  encryptionEnabled   Boolean         @default(false)
+  encryptionSalt      String?
+  encryptedDataLocked Boolean         @default(false)
 }
 
 model Session {
-  id        String   @id
-  userId    Int
-  expiresAt DateTime
-  user      User     @relation(references: [id], fields: [userId], onDelete: Cascade)
+  id            String   @id
+  userId        Int
+  expiresAt     DateTime
+  encryptedKey  String?
+  user          User     @relation(references: [id], fields: [userId], onDelete: Cascade)
 }
 
 model Board {

@@ -39,7 +39,7 @@ export async function reset(state: FormState, formData: FormData) {
   try {
     const record = await prisma.user.findFirst({
       where: { email: result.data.email },
-      select: { id: true, email: true },
+      select: { id: true, email: true, encryptionEnabled: true },
     });
 
     if (!record) {
@@ -59,11 +59,25 @@ export async function reset(state: FormState, formData: FormData) {
       data: { password: hashedPassword },
     });
 
+    // If encryption was enabled, the derived key is now unrecoverable.
+    // Mark data as locked so the recovery flow is shown on next login.
+    if (record.encryptionEnabled) {
+      await prisma.user.update({
+        where: { id: record.id },
+        data: { encryptedDataLocked: true },
+      });
+      await prisma.session.deleteMany({ where: { userId: record.id } });
+    }
+
+    const encryptionNotice = record.encryptionEnabled
+      ? '\n\nIMPORTANT: Your account had field encryption enabled. Your encrypted data is now locked. Log in with the new password and go to your profile to recover or wipe the encrypted data using your old password.'
+      : '';
+
     const info = await transporter.sendMail({
       from: `"${'daylog'} accounts" <${process.env.SMTP_SERVER_USER}>`,
       to: record.email,
       subject: messages.emailSubject,
-      text: messages.emailBody.replace('{password}', newPassword),
+      text: messages.emailBody.replace('{password}', newPassword) + encryptionNotice,
     });
     return {
       success: info.messageId ? true : false,

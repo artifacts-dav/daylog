@@ -70,7 +70,7 @@ export default function InitRegisterForm() {
           </CardHeader>
           <CardContent>
             <form action={action} autoComplete="off" className="space-y-2">
-              <div className="space-y-2 relative pb-5">
+              <div className="space-y-1">
                 <Label htmlFor="name">{t('nameLabel')}</Label>
                 <Input
                   id="name"
@@ -80,12 +80,12 @@ export default function InitRegisterForm() {
                   className={state?.errors?.name ? 'border-destructive' : ''}
                 />
                 {state?.errors?.name && (
-                  <p className="text-[12px] text-destructive absolute bottom-0 left-0">
+                  <p className="text-[12px] text-destructive">
                     {state?.errors?.name}
                   </p>
                 )}
               </div>
-              <div className="space-y-2 relative pb-5">
+              <div className="space-y-1">
                 <Label htmlFor="email">{t('emailLabel')}</Label>
                 <Input
                   id="email"
@@ -96,14 +96,17 @@ export default function InitRegisterForm() {
                   className={state?.errors?.email ? 'border-destructive' : ''}
                 />
                 {state?.errors?.email && (
-                  <p className="text-[12px] text-destructive absolute bottom-0 left-0">
-                    {Array.isArray(state?.errors?.email)
-                      ? state?.errors?.email.join(', ')
-                      : state?.errors?.email}
-                  </p>
+                  <div className="space-y-0.5">
+                    {(Array.isArray(state?.errors?.email)
+                      ? state?.errors?.email
+                      : [state?.errors?.email]
+                    ).map((err, i) => (
+                      <p key={i} className="text-[12px] text-destructive">{err}</p>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="space-y-2 relative pb-5">
+              <div className="space-y-1">
                 <Label htmlFor="password">{t('passwordLabel')}</Label>
                 <div className="relative">
                   <Input
@@ -132,11 +135,14 @@ export default function InitRegisterForm() {
                   </button>
                 </div>
                 {state?.errors?.password && (
-                  <p className="text-[12px] text-destructive absolute bottom-0 left-0">
-                    {Array.isArray(state?.errors?.password)
-                      ? state?.errors?.password.join(', ')
-                      : state?.errors?.password}
-                  </p>
+                  <div className="space-y-0.5">
+                    {(Array.isArray(state?.errors?.password)
+                      ? state?.errors?.password
+                      : [state?.errors?.password]
+                    ).map((err, i) => (
+                      <p key={i} className="text-[12px] text-destructive">{err}</p>
+                    ))}
+                  </div>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">

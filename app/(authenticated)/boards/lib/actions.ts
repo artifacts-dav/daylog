@@ -1,12 +1,14 @@
 'use server';
 
 import { getCurrentSession } from '@/app/login/lib/actions';
+import { getCurrentSessionKey } from '@/app/(authenticated)/lib/encryptionKey';
 import { prisma } from '@/prisma/client';
 import { Board, Prisma } from '@/prisma/generated/client';
 import { saveAndGetImageFile } from '@/utils/file';
 import getSorting from '@/utils/sorting';
 import { removeFile } from '@/utils/storage';
 import { isBase64, isUrl } from '@/utils/text';
+import { encryptBoardFields, decryptBoardFields } from '@/utils/encryption';
 
 import fs from 'fs';
 
@@ -19,8 +21,13 @@ export async function createBoard(
     return null;
   }
 
+  const key = user.encryptionEnabled ? await getCurrentSessionKey() : null;
+  const boardData = key
+    ? encryptBoardFields(board as { title: string; description?: string | null }, key)
+    : board;
+
   const record = await prisma.board.create({
-    data: { ...board, user: { connect: { id: user?.id } } },
+    data: { ...boardData, user: { connect: { id: user?.id } } },
     select: { id: true },
   });
 
@@ -34,15 +41,16 @@ export async function updateBoard(board: Board): Promise<Board | null> {
     return null;
   }
 
-  const { id, ...updateBoard } = board;
+  const key = user.encryptionEnabled ? await getCurrentSessionKey() : null;
+  const { id, ...updateData } = board;
+  const encryptedData = key ? encryptBoardFields(updateData, key) : updateData;
+
   const updatedBoard = await prisma.board.update({
     where: { id, userId: user?.id },
-    data: {
-      ...updateBoard,
-    },
+    data: { ...encryptedData },
   });
 
-  return updatedBoard;
+  return key ? decryptBoardFields(updatedBoard, key) : updatedBoard;
 }
 
 export async function deleteBoard(board: Board): Promise<Board | null> {
@@ -90,7 +98,10 @@ export async function getBoards(
     orderBy: [sorting],
   });
 
-  return boards;
+  if (!user.encryptionEnabled) return boards;
+  const key = await getCurrentSessionKey();
+  if (!key) return boards;
+  return boards.map((b) => decryptBoardFields(b, key));
 }
 
 export async function setUserBoardsSort(sort: string): Promise<void> {
@@ -111,7 +122,10 @@ export async function getBoard(boardId: number): Promise<Board | null> {
   const board = await prisma.board.findFirst({
     where: { id: boardId, userId: user?.id },
   });
-  return board;
+  if (!board || !user.encryptionEnabled) return board;
+  const key = await getCurrentSessionKey();
+  if (!key) return board;
+  return decryptBoardFields(board, key);
 }
 
 export async function saveImage({

@@ -17,6 +17,10 @@ vi.mock('@/app/login/lib/actions', () => ({
 
 vi.mock('./lib/actions', () => ({
   getProfile: mocks.getProfile,
+  enableEncryption: vi.fn(),
+  disableEncryption: vi.fn(),
+  recoverEncryptedData: vi.fn(),
+  wipeEncryptedData: vi.fn(),
 }));
 
 vi.mock('@/app/(authenticated)/admin/lib/actions', () => ({
@@ -52,6 +56,7 @@ vi.mock('next-intl/server', () => ({
 }));
 
 vi.mock('./partials/DangerZone');
+vi.mock('./partials/EncryptData', () => ({ default: () => null }));
 vi.mock('./partials/MultiFAAuth');
 vi.mock('./partials/ProfileInfo');
 vi.mock('./partials/UpdatePass');

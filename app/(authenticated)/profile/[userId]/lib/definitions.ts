@@ -108,3 +108,33 @@ export type MFAValidationFormState =
       message?: string;
     }
   | undefined;
+
+export const EncryptionFormSchema = z.object({
+  password: z.string().min(1, { message: 'Password is required.' }).trim(),
+});
+
+export const RecoverEncryptionFormSchema = z.object({
+  oldPassword: z.string().min(1, { message: 'Old password is required.' }).trim(),
+  newPassword: z.string().min(1, { message: 'New password is required.' }).trim(),
+});
+
+export type EncryptionFormState =
+  | {
+      errors?: {
+        password?: string[];
+      };
+      message?: string;
+      success?: boolean;
+    }
+  | undefined;
+
+export type RecoverEncryptionFormState =
+  | {
+      errors?: {
+        oldPassword?: string[];
+        newPassword?: string[];
+      };
+      message?: string;
+      success?: boolean;
+    }
+  | undefined;
