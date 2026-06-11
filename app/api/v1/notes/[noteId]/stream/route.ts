@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+// Extend Vercel serverless function timeout to reduce SSE reconnect frequency
+export const maxDuration = 300;
 
 import { getCurrentSession } from '@/app/login/lib/actions';
 import { prisma } from '@/prisma/client';

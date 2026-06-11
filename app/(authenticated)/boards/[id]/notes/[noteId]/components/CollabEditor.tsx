@@ -3,6 +3,7 @@
 import { Note } from '@/prisma/generated/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { computeDiff, applyPatch } from '@/utils/diff';
+import { updateNote } from '../../lib/actions';
 import Editor from './Editor';
 
 export type PresenceEntry = {
@@ -56,6 +57,10 @@ export default function CollabEditor({
 
   // collabStateRef mirrors collabState so callbacks can read it without stale closures
   const collabStateRef = useRef<CollabState>('DISCONNECTED');
+  // noteRef mirrors the note prop so onerror/cleanup callbacks always have the latest
+  // note without needing to add `note` to the connect useCallback dependency array.
+  const noteRef = useRef(note);
+  useEffect(() => { noteRef.current = note; }, [note]);
   const revisionRef = useRef<number>(0);
   // lastSyncedContentRef: the content both sides last agreed on (used as diff base)
   const lastSyncedContentRef = useRef<string>(note.content ?? '');
@@ -167,27 +172,41 @@ export default function CollabEditor({
           { userId: number; userName: string; line: number }
         >;
       };
+
+      // Save previous revision BEFORE overwriting so we can detect whether
+      // the server room was reset (e.g. Vercel cold-start of a new instance).
+      const prevRevision = revisionRef.current;
       revisionRef.current = data.revision;
 
-      // If server content differs from local (e.g. first connect when another
-      // user already edited, or reconnect after a disconnect), merge the
-      // server's changes on top of any local edits made during connecting.
       if (data.content !== localContentRef.current) {
-        const remotePatch = computeDiff(
-          lastSyncedContentRef.current,
-          data.content,
-        );
-        const merged =
-          applyPatch(localContentRef.current, remotePatch) ?? data.content;
-        localContentRef.current = merged;
-        setRemoteContent(merged);
+        if (data.revision === 0 && prevRevision > 0) {
+          // The server loaded a fresh room from DB (stale state — common on
+          // Vercel where each reconnect may hit a new serverless instance).
+          // Do NOT regress the editor to old DB content. Instead set the base
+          // to the DB snapshot so the next schedulePatch() computes and pushes
+          // a correct diff from DB → local, bringing the fresh room up to date.
+          lastSyncedContentRef.current = data.content;
+        } else {
+          // Normal case: server has real concurrent changes — three-way merge.
+          const remotePatch = computeDiff(
+            lastSyncedContentRef.current,
+            data.content,
+          );
+          const merged =
+            applyPatch(localContentRef.current, remotePatch) ?? data.content;
+          localContentRef.current = merged;
+          setRemoteContent(merged);
+          lastSyncedContentRef.current = data.content;
+        }
+      } else {
+        lastSyncedContentRef.current = data.content;
       }
 
-      lastSyncedContentRef.current = data.content;
       reconnectAttempts.current = 0;
       updateCollabState('CONNECTED');
 
-      // Flush any edits the user accumulated while connecting
+      // Flush any edits the user accumulated while connecting (or push local
+      // state to a freshly-reset server room in the stale-reconnect case).
       if (localContentRef.current !== data.content) {
         schedulePatch();
       }
@@ -255,6 +274,9 @@ export default function CollabEditor({
       es.close();
       esRef.current = null;
       updateCollabState('RECONNECTING');
+      // Persist the current content to DB immediately so that if the next
+      // reconnect lands on a new serverless instance it loads fresh content.
+      void updateNote({ ...noteRef.current, content: localContentRef.current });
       const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30_000);
       reconnectAttempts.current += 1;
       reconnectTimerRef.current = setTimeout(connect, delay);
