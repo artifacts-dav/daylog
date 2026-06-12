@@ -145,9 +145,9 @@ export default function ShareDialog({ entityType, entityId, trigger }: ShareDial
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-[28px] p-0 overflow-hidden border border-border shadow-2xl">
+      <DialogContent className="sm:max-w-md rounded-[28px] p-0 overflow-hidden border border-border shadow-2xl flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-7 pt-7 pb-5 border-b border-border/60">
+        <div className="px-7 pt-7 pb-5 border-b border-border/60 shrink-0">
           <div className="flex items-center gap-4">
             <div className="h-11 w-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               <ShareIcon className="h-5 w-5 text-primary" />
@@ -163,7 +163,7 @@ export default function ShareDialog({ entityType, entityId, trigger }: ShareDial
           </div>
         </div>
 
-        <div className="px-7 py-6 space-y-6">
+        <div className="px-7 py-6 space-y-6 overflow-y-auto flex-1">
           {!isSuccess ? (
             <>
               {/* Scope selector — vertical radio list */}
