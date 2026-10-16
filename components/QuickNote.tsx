@@ -20,7 +20,11 @@ export default function QuickNote({ boards }: QuickNoteProps) {
       if (!e.altKey || e.code !== 'KeyN') return;
       const el = e.target;
       // Don't hijack typing (e.g. Option+N → ñ) inside editable fields.
-      if (el instanceof Element && el.closest('input, textarea, select, [contenteditable="true"]')) return;
+      if (
+        el instanceof HTMLElement &&
+        (el.isContentEditable || el.closest('input, textarea, select'))
+      )
+        return;
       e.preventDefault();
       triggerRef.current?.click();
     };

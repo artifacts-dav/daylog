@@ -46,4 +46,23 @@ describe('QuickNote', () => {
 
     expect(screen.queryByText('Create note')).not.toBeInTheDocument();
   });
+
+  it('ignores Alt+N inside contenteditable content', () => {
+    render(
+      <>
+        <div contentEditable="plaintext-only">
+          <span data-testid="inner">text</span>
+        </div>
+        <QuickNote boards={boards} />
+      </>,
+    );
+    // jsdom lacks isContentEditable; emulate the browser's inherited value.
+    Object.defineProperty(screen.getByTestId('inner'), 'isContentEditable', {
+      value: true,
+    });
+
+    fireEvent.keyDown(screen.getByTestId('inner'), { altKey: true, code: 'KeyN' });
+
+    expect(screen.queryByText('Create note')).not.toBeInTheDocument();
+  });
 });

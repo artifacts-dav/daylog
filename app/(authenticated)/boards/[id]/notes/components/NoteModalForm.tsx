@@ -70,7 +70,8 @@ export default function NoteModalForm({
 
     try {
       if (mode === 'create') {
-        await createNoteHandler(data, targetBoardId);
+        // Keep the modal and draft open so the user can retry.
+        if (!(await createNoteHandler(data, targetBoardId))) return;
       } else {
         await updateNoteHandler(data);
       }
@@ -100,12 +101,21 @@ export default function NoteModalForm({
     }
   }
 
-  const createNoteHandler = async (data: Note, boardId: number) => {
+  const createNoteHandler = async (
+    data: Note,
+    boardId: number,
+  ): Promise<boolean> => {
     const noteId = await createNote(data, boardId);
-    if (!noteId) return;
-    await uploadImage(noteId);
+    if (!noteId) return false;
+    try {
+      await uploadImage(noteId);
+    } catch (error) {
+      // The note exists: don't fail the submit, or a retry would create a duplicate.
+      console.error('Image upload failed for new note', noteId, error);
+    }
     // Land in the editor so the user can keep writing right away.
     router.push(`/boards/${boardId}/notes/${noteId}`);
+    return true;
   };
 
   const updateNoteHandler = async (data: Note) => {
